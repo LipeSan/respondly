@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String?
+  createdAt DateTime @default(now())
+  businesses Business[]
+}
+
+model Business {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  phone       String?
+  email       String?
+  timezone    String   @default("Australia/Sydney")
+
+  google      GoogleConnection?
+  templates   ReviewTemplate[]
+  rules       ReviewRule[]
+  reviews     Review[]
+  createdAt   DateTime @default(now())
+}
+
+model GoogleConnection {
+  id           String   @id @default(cuid())
+  businessId   String   @unique
+  business     Business @relation(fields: [businessId], references: [id])
+
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  locationId   String?  // GBP location selected
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ReviewTemplate {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  name       String
+  body       String
+  createdAt  DateTime @default(now())
+}
+
+model ReviewRule {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id])
+
+  priority     Int      @default(100)
+  minStars     Int?
+  maxStars     Int?
+  mode         String   @default("auto") // auto | manual
+  responseType String   @default("template") // template | ai
+  templateId   String?
+  aiSettings   Json?
+
+  createdAt    DateTime @default(now())
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id])
+
+  googleReviewId String  @unique
+  rating         Int
+  authorName     String?
+  comment        String?
+  createdAtGoogle DateTime?
+
+  status        String   @default("pending") // pending | responded | failed | skipped
+  lastError     String?
+
+  responses     ReviewResponse[]
+  createdAt     DateTime @default(now())
+}
+
+model ReviewResponse {
+  id          String   @id @default(cuid())
+  reviewId    String
+  review      Review   @relation(fields: [reviewId], references: [id])
+
+  ruleId      String?
+  method      String   // template | ai | manual
+  generated   String?
+  finalText   String
+  sentAt      DateTime?
+
+  createdAt   DateTime @default(now())
+}
