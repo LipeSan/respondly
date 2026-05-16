@@ -12,43 +12,73 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ReviewStatus {
+  pending
+  responded
+  failed
+  skipped
+}
+
+enum RuleMode {
+  auto
+  manual
+}
+
+enum ResponseMethod {
+  template
+  ai
+  manual
+}
+
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  password  String?
-  createdAt DateTime @default(now())
+  id         String     @id @default(cuid())
+  name       String?
+  email      String     @unique
+  password   String?
+  createdAt  DateTime   @default(now())
   businesses Business[]
 }
 
 model Business {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  name        String
-  phone       String?
-  email       String?
-  timezone    String   @default("Australia/Sydney")
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  google      GoogleConnection?
-  templates   ReviewTemplate[]
-  rules       ReviewRule[]
-  reviews     Review[]
-  createdAt   DateTime @default(now())
+  name     String
+  phone    String?
+  email    String?
+  timezone String  @default("Australia/Sydney")
+
+  googleAccountName  String?
+  googleLocationName String?
+  googleLocationId   String? // ex: locations/123... ou accounts/xxx/locations/yyy
+
+  initialSyncCompleted Boolean       @default(false)
+  connectedAt          DateTime?
+  subscription         Subscription?
+
+  autoResponderEnabled Boolean           @default(false)
+  aiSettings           Json?
+  google               GoogleConnection?
+  templates            ReviewTemplate[]
+  rules                ReviewRule[]
+  reviews              Review[]
+  jobRuns              JobRun[]
+  createdAt            DateTime          @default(now())
 }
 
 model GoogleConnection {
-  id           String   @id @default(cuid())
-  businessId   String   @unique
-  business     Business @relation(fields: [businessId], references: [id])
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id])
 
   accessToken  String
   refreshToken String
   expiresAt    DateTime
-  locationId   String?  // GBP location selected
+  locationId   String?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ReviewTemplate {
@@ -56,55 +86,117 @@ model ReviewTemplate {
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
 
-  name       String
-  body       String
-  createdAt  DateTime @default(now())
+  name      String
+  body      String
+  createdAt DateTime     @default(now())
+  rules     ReviewRule[]
 }
 
 model ReviewRule {
-  id           String   @id @default(cuid())
-  businessId   String
-  business     Business @relation(fields: [businessId], references: [id])
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
 
-  priority     Int      @default(100)
+  priority     Int            @default(100)
   minStars     Int?
   maxStars     Int?
-  mode         String   @default("auto") // auto | manual
-  responseType String   @default("template") // template | ai
-  templateId   String?
-  aiSettings   Json?
+  mode         RuleMode       @default(auto)
+  responseType ResponseMethod @default(template)
 
-  createdAt    DateTime @default(now())
+  templateId String?
+  template   ReviewTemplate? @relation(fields: [templateId], references: [id])
+
+  aiSettings Json?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, priority])
 }
 
 model Review {
-  id            String   @id @default(cuid())
-  businessId    String
-  business      Business @relation(fields: [businessId], references: [id])
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
 
-  googleReviewId String  @unique
-  rating         Int
-  authorName     String?
-  comment        String?
+  source          String    @default("mock") // "google" | "mock"
+  externalId      String? // google review name/id (unique per business)
+  rating          Int
+  authorName      String?
+  comment         String?
   createdAtGoogle DateTime?
 
-  status        String   @default("pending") // pending | responded | failed | skipped
-  lastError     String?
+  status    ReviewStatus @default(pending)
+  lastError String?
 
-  responses     ReviewResponse[]
-  createdAt     DateTime @default(now())
+  response  ReviewResponse?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt // ✅ ADD
+
+  @@unique([businessId, source, externalId]) // ✅ ADD (dedupe)
+  @@index([businessId, status]) // ✅ ADD (fila)
+  @@index([businessId, createdAtGoogle]) // ✅ ADD (ordenar pelo google)
 }
 
 model ReviewResponse {
-  id          String   @id @default(cuid())
-  reviewId    String
-  review      Review   @relation(fields: [reviewId], references: [id])
+  id       String @id @default(cuid())
+  reviewId String @unique
+  review   Review @relation(fields: [reviewId], references: [id])
 
-  ruleId      String?
-  method      String   // template | ai | manual
-  generated   String?
-  finalText   String
-  sentAt      DateTime?
+  ruleId    String?
+  method    ResponseMethod
+  generated String?
+  finalText String
+  sentAt    DateTime?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+enum JobType {
+  sync_reviews
+  auto_responder
+}
+
+enum JobStatus {
+  running
+  success
+  failed
+}
+
+model JobRun {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  type   JobType
+  status JobStatus @default(running)
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  processed Int @default(0)
+  responded Int @default(0)
+  skipped   Int @default(0)
+
+  error String?
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, type])
+  @@index([businessId, createdAt])
+}
+
+model Subscription {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id])
+
+  plan                 String // starter | pro
+  status               String // active | canceled | past_due
+  cancelAtPeriodEnd    Boolean  @default(false)
+  cancelAt             DateTime?
+  currentPeriodEnd     DateTime?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
