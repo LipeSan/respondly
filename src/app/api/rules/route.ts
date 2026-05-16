@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
-import { ResponseMethod, RuleMode } from "@prisma/client";
+
+type RuleMode = "auto" | "manual";
+type ResponseMethod = "template" | "ai" | "manual";
 
 function parseRuleMode(v: unknown): RuleMode {
-  return v === RuleMode.manual ? RuleMode.manual : RuleMode.auto;
+  return v === "manual" ? "manual" : "auto";
 }
 
 function parseResponseMethod(v: unknown): ResponseMethod {
-  if (v === ResponseMethod.ai) return ResponseMethod.ai;
-  if (v === ResponseMethod.manual) return ResponseMethod.manual;
-  return ResponseMethod.template;
+  if (v === "ai") return "ai";
+  if (v === "manual") return "manual";
+  return "template";
 }
 
 export async function GET() {

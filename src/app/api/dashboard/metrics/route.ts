@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
-import { ReviewStatus, ResponseMethod } from "@prisma/client";
+
+type ReviewStatus = "pending" | "responded" | "failed" | "skipped";
+type ResponseMethod = "template" | "ai" | "manual";
 
 function clampRangeDays(v: unknown) {
   const n = Number(v);
@@ -143,13 +145,17 @@ export async function GET(req: Request) {
     totalReviews += 1;
     ratingSum += r.rating;
 
-    statusTotals[r.status] += 1;
+    const status = r.status as ReviewStatus;
+    statusTotals[status] += 1;
     bucket.total += 1;
     bucket.ratingSum += r.rating;
-    bucket.status[r.status] += 1;
+    bucket.status[status] += 1;
 
     if (r.response?.method) {
-      methodTotals[r.response.method] += 1;
+      const method = r.response.method as ResponseMethod;
+      if (methodTotals[method] !== undefined) {
+        methodTotals[method] += 1;
+      }
       const diffMs = r.response.createdAt.getTime() - created.getTime();
       const diffMinutes = diffMs / 60000;
       if (Number.isFinite(diffMinutes) && diffMinutes >= 0) {
@@ -158,8 +164,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const isDraft =
-      r.status === "pending" && Boolean(r.response?.method) && !r.response?.sentAt;
+    const isDraft = status === "pending" && Boolean(r.response?.method) && !r.response?.sentAt;
 
     if (isDraft) {
       draftsAwaitingApprovalTotal += 1;
@@ -184,7 +189,7 @@ export async function GET(req: Request) {
           rating: r.rating,
           authorName: r.authorName ?? null,
           comment: r.comment ?? null,
-          status: r.status,
+          status,
           createdAt: created.toISOString(),
         });
       }
