@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
-import { Prisma, ReviewStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+
+type ReviewStatus = "pending" | "responded" | "failed" | "skipped";
 
 export async function GET(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
@@ -13,13 +15,9 @@ export async function GET(req: Request) {
 
   const where: Prisma.ReviewWhereInput = { businessId: business.id };
   if (status && status !== "all") {
-    if (
-      status === ReviewStatus.pending ||
-      status === ReviewStatus.responded ||
-      status === ReviewStatus.failed ||
-      status === ReviewStatus.skipped
-    ) {
-      where.status = status;
+    const allowed: ReviewStatus[] = ["pending", "responded", "failed", "skipped"];
+    if (allowed.includes(status as ReviewStatus)) {
+      where.status = status as ReviewStatus;
     }
   }
 

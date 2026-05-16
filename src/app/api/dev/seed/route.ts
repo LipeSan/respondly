@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
-import { Prisma, ResponseMethod, RuleMode } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+
+type RuleMode = "auto" | "manual";
+type ResponseMethod = "template" | "ai" | "manual";
 
 function parseNullableInt(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
@@ -11,13 +14,13 @@ function parseNullableInt(v: unknown): number | null {
 }
 
 function parseRuleMode(v: unknown): RuleMode {
-  return v === RuleMode.manual ? RuleMode.manual : RuleMode.auto;
+  return v === "manual" ? "manual" : "auto";
 }
 
 function parseResponseMethod(v: unknown): ResponseMethod {
-  if (v === ResponseMethod.ai) return ResponseMethod.ai;
-  if (v === ResponseMethod.manual) return ResponseMethod.manual;
-  return ResponseMethod.template;
+  if (v === "ai") return "ai";
+  if (v === "manual") return "manual";
+  return "template";
 }
 
 function validateStars(minStars: number | null, maxStars: number | null) {
@@ -92,7 +95,7 @@ export async function POST(req: Request) {
       maxStars: maxStars ?? undefined,
       mode,
       responseType,
-      templateId: responseType === ResponseMethod.template ? (templateId ?? undefined) : null,
+      templateId: responseType === "template" ? (templateId ?? undefined) : null,
     },
     include: { template: true },
   });
