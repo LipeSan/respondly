@@ -14,6 +14,10 @@ type SubscriptionWithPeriodEnd = Stripe.Subscription & {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+export async function GET() {
+  return NextResponse.json({ ok: true });
+}
+
 function normalizeSubscriptionId(
   sub: string | Stripe.Subscription | null | undefined
 ): string | null {
