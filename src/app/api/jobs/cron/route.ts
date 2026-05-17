@@ -51,17 +51,17 @@ async function getDebugReviews(businessId: string) {
 }
 
 async function handle(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "CRON_SECRET not set" }, { status: 500 });
-  }
-
   const url = new URL(req.url);
   const debug = url.searchParams.get("debug") === "1";
+  const isVercelCron = req.headers.get("x-vercel-cron") === "1";
   const header = req.headers.get("x-cron-secret");
   const query = url.searchParams.get("secret");
-  const provided = header ?? query ?? "";
-  if (provided !== secret) return unauthorized();
+
+  if (!isVercelCron) {
+    const secret = process.env.CRON_SECRET;
+    const provided = header ?? query ?? "";
+    if (!secret || provided !== secret) return unauthorized();
+  }
 
   const take = Math.min(Number(url.searchParams.get("take") ?? 50), 200);
 

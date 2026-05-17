@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 type SubscriptionWithPeriodEnd = Stripe.Subscription & {
   current_period_end?: number;
@@ -18,6 +19,16 @@ function normalizeSubscriptionId(
 ): string | null {
   if (!sub) return null;
   return typeof sub === "string" ? sub : sub.id;
+}
+
+function normalizeStripeId(v: unknown): string | null {
+  if (!v) return null;
+  if (typeof v === "string") return v;
+  if (typeof v === "object" && v !== null && "id" in v) {
+    const id = (v as { id?: unknown }).id;
+    if (typeof id === "string") return id;
+  }
+  return null;
 }
 
 async function getCurrentPeriodEndFromInvoiceOrSub(args: {
@@ -53,6 +64,10 @@ export async function POST(req: Request) {
   const whsec = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!sig || !whsec) {
+    console.warn("[stripe:webhook] Missing signature or webhook secret", {
+      hasSignature: Boolean(sig),
+      hasWebhookSecret: Boolean(whsec),
+    });
     return NextResponse.json({ error: "Missing webhook secret" }, { status: 400 });
   }
 
@@ -61,7 +76,12 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, whsec);
-    console.log("[stripe:webhook] type:", event.type);
+    console.log("[stripe:webhook] received", {
+      id: event.id,
+      type: event.type,
+      created: event.created,
+      livemode: event.livemode,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[stripe:webhook] Signature verification failed", { error: message });
@@ -127,6 +147,114 @@ export async function POST(req: Request) {
     });
   }
 
+  async function findBusinessIdFromStripeIds(args: { customerId?: string | null; subscriptionId?: string | null }) {
+    const ors: Array<{ stripeCustomerId?: string; stripeSubscriptionId?: string }> = [];
+    if (args.subscriptionId) ors.push({ stripeSubscriptionId: args.subscriptionId });
+    if (args.customerId) ors.push({ stripeCustomerId: args.customerId });
+
+    if (ors.length > 0) {
+      const found = await prisma.subscription.findFirst({
+        where: { OR: ors },
+        select: { businessId: true },
+      });
+      if (found?.businessId) {
+        console.log("[stripe:webhook] resolved businessId from local subscription", {
+          businessId: found.businessId,
+          customerId: args.customerId ?? null,
+          subscriptionId: args.subscriptionId ?? null,
+        });
+        return found.businessId;
+      }
+    }
+
+    if (args.customerId) {
+      try {
+        const customer = await stripe.customers.retrieve(args.customerId);
+        const businessId = String((customer as Stripe.Customer).metadata?.businessId ?? "");
+        if (businessId) {
+          console.log("[stripe:webhook] resolved businessId from Stripe customer metadata", {
+            businessId,
+            customerId: args.customerId,
+          });
+          return businessId;
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[stripe:webhook] findBusinessIdFromStripeIds failed", msg);
+      }
+    }
+
+    console.warn("[stripe:webhook] could not resolve businessId", {
+      customerId: args.customerId ?? null,
+      subscriptionId: args.subscriptionId ?? null,
+    });
+    return null;
+  }
+
+  async function recordPaymentHistory(args: {
+    businessId: string;
+    stripeEventId: string;
+    stripeEventType: string;
+    status: string;
+    stripeInvoiceId?: string | null;
+    stripePaymentIntentId?: string | null;
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    amount?: number | null;
+    currency?: string | null;
+    paidAt?: Date | null;
+    hostedInvoiceUrl?: string | null;
+    invoicePdf?: string | null;
+    rawEvent?: unknown;
+  }) {
+    try {
+      await prisma.paymentHistory.create({
+        data: {
+          businessId: args.businessId,
+          stripeEventId: args.stripeEventId,
+          stripeEventType: args.stripeEventType,
+          stripeInvoiceId: args.stripeInvoiceId ?? null,
+          stripePaymentIntentId: args.stripePaymentIntentId ?? null,
+          stripeCustomerId: args.stripeCustomerId ?? null,
+          stripeSubscriptionId: args.stripeSubscriptionId ?? null,
+          amount: typeof args.amount === "number" ? args.amount : null,
+          currency: args.currency ?? null,
+          status: args.status,
+          paidAt: args.paidAt ?? null,
+          hostedInvoiceUrl: args.hostedInvoiceUrl ?? null,
+          invoicePdf: args.invoicePdf ?? null,
+          rawEvent: args.rawEvent ? (args.rawEvent as Prisma.InputJsonValue) : undefined,
+        },
+      });
+      console.log("[stripe:webhook] payment history recorded", {
+        businessId: args.businessId,
+        stripeEventId: args.stripeEventId,
+        stripeEventType: args.stripeEventType,
+        status: args.status,
+        stripeInvoiceId: args.stripeInvoiceId ?? null,
+        stripeSubscriptionId: args.stripeSubscriptionId ?? null,
+        amount: typeof args.amount === "number" ? args.amount : null,
+        currency: args.currency ?? null,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        console.log("[stripe:webhook] payment history deduped", {
+          businessId: args.businessId,
+          stripeEventId: args.stripeEventId,
+          stripeEventType: args.stripeEventType,
+        });
+        return;
+      }
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[stripe:webhook] recordPaymentHistory failed", {
+        businessId: args.businessId,
+        stripeEventId: args.stripeEventId,
+        stripeEventType: args.stripeEventType,
+        error: msg,
+      });
+    }
+  }
+
   // 1) Checkout completed (always save IDs; try to enrich with status and currentPeriodEnd)
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
@@ -147,7 +275,7 @@ export async function POST(req: Request) {
       expand: ["subscription"],
     });
 
-    const customerId = full.customer ? String(full.customer) : null;
+    const customerId = normalizeStripeId(full.customer);
 
     // subscription can be a string OR an object (because we expanded it)
     let subscriptionId: string | null = null;
@@ -212,6 +340,8 @@ export async function POST(req: Request) {
     const cancelAt =
       cancelAtPeriodEnd && typeof rawCancelAt === "number" ? new Date(rawCancelAt * 1000) : null;
 
+    const subCustomerId = normalizeStripeId((sub as { customer?: unknown }).customer);
+
     // ✅ Update with the real status + IDs
     await prisma.subscription.upsert({
       where: { businessId },
@@ -221,7 +351,7 @@ export async function POST(req: Request) {
         status: sub.status, // normalmente active/trialing
         cancelAtPeriodEnd,
         cancelAt,
-        stripeCustomerId: customerId ?? String(sub.customer ?? ""),
+        stripeCustomerId: customerId ?? subCustomerId,
         stripeSubscriptionId: sub.id,
         currentPeriodEnd,
       },
@@ -230,7 +360,7 @@ export async function POST(req: Request) {
         status: sub.status,
         cancelAtPeriodEnd,
         cancelAt,
-        stripeCustomerId: (customerId ?? String(sub.customer ?? "")) || undefined,
+        stripeCustomerId: (customerId ?? subCustomerId) || undefined,
         stripeSubscriptionId: sub.id,
         currentPeriodEnd: currentPeriodEnd ?? undefined,
       },
@@ -239,7 +369,7 @@ export async function POST(req: Request) {
     console.log("[stripe:webhook] saved subscription from checkout.session.completed", {
       businessId,
       status: sub.status,
-      stripeCustomerId: customerId ?? String(sub.customer ?? ""),
+      stripeCustomerId: customerId ?? subCustomerId,
       stripeSubscriptionId: sub.id,
       currentPeriodEnd,
     });
@@ -253,7 +383,7 @@ export async function POST(req: Request) {
     if (!businessId) return NextResponse.json({ received: true });
 
     let subId = session.subscription ? String(session.subscription) : null;
-    const customerId = session.customer ? String(session.customer) : null;
+    const customerId = normalizeStripeId(session.customer);
 
     if (!subId) {
       const full = await stripe.checkout.sessions.retrieve(session.id, {
@@ -291,7 +421,7 @@ export async function POST(req: Request) {
           status: s.status,
           cancelAtPeriodEnd,
           cancelAt,
-          stripeCustomerId: customerId ?? String(s.customer ?? ""),
+          stripeCustomerId: customerId ?? normalizeStripeId((s as { customer?: unknown }).customer),
           stripeSubscriptionId: subId,
           currentPeriodEnd,
         },
@@ -341,9 +471,15 @@ export async function POST(req: Request) {
     };
     const inv = invoice as InvoiceWithSubscription;
     const subId = normalizeSubscriptionId(inv.subscription);
-    if (!subId) return NextResponse.json({ received: true });
+    if (!subId) {
+      console.warn("[stripe:webhook] invoice.paid missing subscription id", {
+        invoiceId: invoice.id,
+        customerId: normalizeStripeId((invoice as { customer?: unknown }).customer),
+      });
+      return NextResponse.json({ received: true });
+    }
 
-    const customerId = inv.customer ? String(inv.customer) : null;
+    const customerId = normalizeStripeId(inv.customer);
     const sub = (await stripe.subscriptions.retrieve(subId)) as SubscriptionWithPeriodEnd;
     const currentPeriodEnd = await getCurrentPeriodEndFromInvoiceOrSub({
       sub,
@@ -376,6 +512,134 @@ export async function POST(req: Request) {
           currentPeriodEnd,
           stripeSubscriptionId: sub.id,
         },
+      });
+    }
+
+    const businessId = await findBusinessIdFromStripeIds({ customerId, subscriptionId: sub.id });
+    if (businessId) {
+      const invoiceAny = invoice as unknown as {
+        payment_intent?: unknown;
+        hosted_invoice_url?: unknown;
+        invoice_pdf?: unknown;
+        status_transitions?: { paid_at?: unknown } | null;
+      };
+      const paidAtSec = invoiceAny.status_transitions?.paid_at ?? null;
+      const paidAt = typeof paidAtSec === "number" ? new Date(paidAtSec * 1000) : null;
+      console.log("[stripe:webhook] invoice.paid identifiers", {
+        invoiceId: invoice.id,
+        customerId,
+        subscriptionId: sub.id,
+        status: invoice.status ?? null,
+        amountPaid: typeof invoice.amount_paid === "number" ? invoice.amount_paid : null,
+        currency: invoice.currency ?? null,
+        hasHostedInvoiceUrl: typeof invoiceAny.hosted_invoice_url === "string",
+        hasInvoicePdf: typeof invoiceAny.invoice_pdf === "string",
+        paymentIntentId: invoiceAny.payment_intent ? String(invoiceAny.payment_intent) : null,
+      });
+      await recordPaymentHistory({
+        businessId,
+        stripeEventId: event.id,
+        stripeEventType: event.type,
+        status: invoice.status === "paid" ? "paid" : String(invoice.status ?? "paid"),
+        stripeInvoiceId: invoice.id,
+        stripePaymentIntentId: invoiceAny.payment_intent ? String(invoiceAny.payment_intent) : null,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: sub.id,
+        amount: typeof invoice.amount_paid === "number" ? invoice.amount_paid : null,
+        currency: invoice.currency ?? null,
+        paidAt,
+        hostedInvoiceUrl: typeof invoiceAny.hosted_invoice_url === "string" ? invoiceAny.hosted_invoice_url : null,
+        invoicePdf: typeof invoiceAny.invoice_pdf === "string" ? invoiceAny.invoice_pdf : null,
+        rawEvent: event,
+      });
+    } else {
+      console.warn("[stripe:webhook] invoice.paid: businessId not found", {
+        customerId,
+        subscriptionId: sub.id,
+        invoiceId: invoice.id,
+      });
+    }
+
+    return NextResponse.json({ received: true });
+  }
+
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const customerId = normalizeStripeId(invoice.customer);
+    const invoiceAny = invoice as unknown as {
+      subscription?: unknown;
+      payment_intent?: unknown;
+      hosted_invoice_url?: unknown;
+      invoice_pdf?: unknown;
+    };
+    const subId = normalizeStripeId(invoiceAny.subscription);
+    const businessId = await findBusinessIdFromStripeIds({ customerId, subscriptionId: subId });
+
+    if (businessId) {
+      console.log("[stripe:webhook] invoice.payment_failed identifiers", {
+        invoiceId: invoice.id,
+        customerId,
+        subscriptionId: subId,
+        amountDue: typeof invoice.amount_due === "number" ? invoice.amount_due : null,
+        currency: invoice.currency ?? null,
+        paymentIntentId: invoiceAny.payment_intent ? String(invoiceAny.payment_intent) : null,
+      });
+      await recordPaymentHistory({
+        businessId,
+        stripeEventId: event.id,
+        stripeEventType: event.type,
+        status: "payment_failed",
+        stripeInvoiceId: invoice.id,
+        stripePaymentIntentId: invoiceAny.payment_intent ? String(invoiceAny.payment_intent) : null,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subId,
+        amount: typeof invoice.amount_due === "number" ? invoice.amount_due : null,
+        currency: invoice.currency ?? null,
+        hostedInvoiceUrl: typeof invoiceAny.hosted_invoice_url === "string" ? invoiceAny.hosted_invoice_url : null,
+        invoicePdf: typeof invoiceAny.invoice_pdf === "string" ? invoiceAny.invoice_pdf : null,
+        rawEvent: event,
+      });
+    } else {
+      console.warn("[stripe:webhook] invoice.payment_failed: businessId not found", {
+        customerId,
+        subscriptionId: subId,
+        invoiceId: invoice.id,
+      });
+    }
+
+    return NextResponse.json({ received: true });
+  }
+
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge;
+    const customerId = normalizeStripeId(charge.customer);
+    const chargeAny = charge as unknown as { invoice?: unknown; payment_intent?: unknown };
+    const invoiceId = chargeAny.invoice ? String(chargeAny.invoice) : null;
+    const paymentIntentId = chargeAny.payment_intent ? String(chargeAny.payment_intent) : null;
+
+    const businessId = await findBusinessIdFromStripeIds({ customerId, subscriptionId: null });
+    if (businessId) {
+      const createdAt = typeof charge.created === "number" ? new Date(charge.created * 1000) : null;
+      console.log("[stripe:webhook] charge.refunded identifiers", {
+        chargeId: charge.id,
+        customerId,
+        invoiceId,
+        paymentIntentId,
+        amountRefunded: typeof charge.amount_refunded === "number" ? charge.amount_refunded : null,
+        currency: charge.currency ?? null,
+      });
+      await recordPaymentHistory({
+        businessId,
+        stripeEventId: event.id,
+        stripeEventType: event.type,
+        status: "refunded",
+        stripeInvoiceId: invoiceId,
+        stripePaymentIntentId: paymentIntentId,
+        stripeCustomerId: customerId,
+        amount: typeof charge.amount_refunded === "number" ? -Math.abs(charge.amount_refunded) : null,
+        currency: charge.currency ?? null,
+        paidAt: createdAt,
+        rawEvent: event,
       });
     }
 

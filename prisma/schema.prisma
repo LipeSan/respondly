@@ -64,6 +64,7 @@ model Business {
   rules                ReviewRule[]
   reviews              Review[]
   jobRuns              JobRun[]
+  paymentHistory       PaymentHistory[]
   createdAt            DateTime          @default(now())
 }
 
@@ -199,4 +200,31 @@ model Subscription {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model PaymentHistory {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  stripeEventId          String @unique
+  stripeEventType        String
+  stripeInvoiceId        String?
+  stripePaymentIntentId  String?
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+
+  amount  Int?
+  currency String?
+  status  String
+  paidAt  DateTime?
+
+  hostedInvoiceUrl String?
+  invoicePdf       String?
+  rawEvent         Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([stripeInvoiceId])
 }

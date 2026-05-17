@@ -19,11 +19,34 @@ type Business = {
     } | null;
 };
 
+type PaymentHistoryItem = {
+    id: string;
+    status: string;
+    amount: number | null;
+    currency: string | null;
+    paidAt: string | null;
+    createdAt: string;
+    stripeInvoiceId: string | null;
+    hostedInvoiceUrl: string | null;
+    invoicePdf: string | null;
+};
+
+function formatMoney(amount: number | null, currency: string | null) {
+    if (typeof amount !== "number") return "—";
+    const ccy = (currency ?? "USD").toUpperCase();
+    try {
+        return new Intl.NumberFormat(undefined, { style: "currency", currency: ccy }).format(amount / 100);
+    } catch {
+        return `${(amount / 100).toFixed(2)} ${ccy}`;
+    }
+}
+
 export default function SubscriptionPage() {
     const router = useRouter();
     const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [business, setBusiness] = useState<Business | null>(null);
+    const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [canceling, setCanceling] = useState(false);
     const [subscribing, setSubscribing] = useState<null | "starter" | "pro">(null);
@@ -33,16 +56,26 @@ export default function SubscriptionPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch("/api/businesses", { cache: "no-store" });
-            if (res.status === 401) {
+            const [res, historyRes] = await Promise.all([
+                fetch("/api/businesses", { cache: "no-store" }),
+                fetch("/api/billing/history?take=20", { cache: "no-store" }),
+            ]);
+
+            if (res.status === 401 || historyRes.status === 401) {
                 router.push("/login");
                 router.refresh();
                 return;
             }
+
             const data = await res.json().catch(() => ({}));
+            const historyData = await historyRes.json().catch(() => ({}));
+
             if (!res.ok) throw new Error(data?.error || "Failed to load subscription");
             const first = (data.businesses ?? [])[0] as Business | undefined;
             setBusiness(first ?? null);
+
+            if (historyRes.ok) setPaymentHistory((historyData?.items ?? []) as PaymentHistoryItem[]);
+            else setPaymentHistory([]);
         } catch (e) {
             const msg = e instanceof Error ? e.message : "Unexpected error";
             setError(msg);
@@ -295,6 +328,88 @@ export default function SubscriptionPage() {
                                 <li>• AI-powered responses in Pro</li>
                             </ul>
                         </div>
+                    </div>
+                </div>
+
+                <div className="mt-6 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+                    <Text variant="subtitle" className="font-bold text-gray-900">Payment history</Text>
+                    <Text variant="body" className="mt-2 text-sm text-gray-600">
+                        Your latest invoices and payment events.
+                    </Text>
+
+                    <div className="mt-4 overflow-x-auto">
+                        {paymentHistory.length === 0 ? (
+                            <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                                <Text variant="body" className="text-sm text-gray-700">
+                                    No payment history yet.
+                                </Text>
+                            </div>
+                        ) : (
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-xs text-gray-500">
+                                        <th className="py-2 pr-4 font-semibold">Date</th>
+                                        <th className="py-2 pr-4 font-semibold">Status</th>
+                                        <th className="py-2 pr-4 font-semibold">Amount</th>
+                                        <th className="py-2 pr-4 font-semibold">Invoice</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {paymentHistory.map((p) => {
+                                        const when = p.paidAt ?? p.createdAt;
+                                        const link = p.hostedInvoiceUrl ?? p.invoicePdf;
+                                        const badge =
+                                            p.status === "paid"
+                                                ? "bg-emerald-100 text-emerald-800"
+                                                : p.status === "payment_failed"
+                                                    ? "bg-red-100 text-red-800"
+                                                    : p.status === "refunded"
+                                                        ? "bg-gray-100 text-gray-800"
+                                                        : "bg-amber-100 text-amber-800";
+                                        const statusLabel =
+                                            p.status === "payment_failed"
+                                                ? "Payment failed"
+                                                : p.status === "paid"
+                                                    ? "Paid"
+                                                    : p.status === "refunded"
+                                                        ? "Refunded"
+                                                        : p.status;
+
+                                        return (
+                                            <tr key={p.id} className="text-gray-700">
+                                                <td className="py-3 pr-4 whitespace-nowrap">
+                                                    {new Date(when).toLocaleString()}
+                                                </td>
+                                                <td className="py-3 pr-4 whitespace-nowrap">
+                                                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badge}`}>
+                                                        {statusLabel}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 pr-4 whitespace-nowrap">
+                                                    {formatMoney(p.amount, p.currency)}
+                                                </td>
+                                                <td className="py-3 pr-4 whitespace-nowrap">
+                                                    {link ? (
+                                                        <a
+                                                            href={link}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-blue-700 underline underline-offset-2"
+                                                        >
+                                                            View
+                                                        </a>
+                                                    ) : p.stripeInvoiceId ? (
+                                                        <span className="text-gray-500">{p.stripeInvoiceId}</span>
+                                                    ) : (
+                                                        "—"
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
                 </div>
 
