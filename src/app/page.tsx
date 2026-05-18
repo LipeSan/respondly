@@ -2,10 +2,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/Text";
+import { Analytics } from "@vercel/analytics/next"
+
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
+      <Analytics/>
       {/* Navigation */}
       <nav className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
