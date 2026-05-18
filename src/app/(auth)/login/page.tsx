@@ -102,7 +102,7 @@ export default function LoginPage() {
                   Password
                 </Text>
                 <div className="text-sm">
-                  <Text variant="link" as="a" href="#">
+                  <Text variant="link" as={Link} href="/forgot-password">
                     Forgot your password?
                   </Text>
                 </div>
@@ -137,6 +137,18 @@ export default function LoginPage() {
             <Text variant="body" as="span">{`Don't have an account? `}</Text>
             <Text variant="link" as={Link} href="/register">
               Sign up
+            </Text>
+          </div>
+
+          <div className="text-center mt-4">
+            <Text variant="body" as="span" className="text-xs text-gray-500">
+              By continuing, you agree to our{" "}
+            </Text>
+            <Text variant="link" as={Link} href="/terms" className="text-xs">
+              Terms & Conditions
+            </Text>
+            <Text variant="body" as="span" className="text-xs text-gray-500">
+              .
             </Text>
           </div>
         </form>

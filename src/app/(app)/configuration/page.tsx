@@ -523,8 +523,10 @@ Rules:
         </div>
 
         {autoResponderEnabled !== null && (
-          <div className="mt-6 max-w-sm">
-            <AutoReplyCard businessId={business.id} initialEnabled={autoResponderEnabled} />
+          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="md:col-span-3">
+              <AutoReplyCard initialEnabled={autoResponderEnabled} />
+            </div>
           </div>
         )}
 

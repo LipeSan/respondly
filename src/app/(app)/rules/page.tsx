@@ -297,7 +297,7 @@ export default function RulesPage() {
         {templates.length === 0 && !loading && (
           <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
             <Text variant="body" className="text-sm text-yellow-800">
-              You don't have any templates yet. Create at least 1 in{" "}
+              You don&apos;t have any templates yet. Create at least 1 in{" "}
               <Link href="/templates" className="font-semibold underline underline-offset-2">
                 Templates
               </Link>{" "}

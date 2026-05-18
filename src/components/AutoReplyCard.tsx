@@ -5,11 +5,10 @@ import { Text } from "./Text";
 import { Switch } from "./Switch";
 
 interface AutoReplyCardProps {
-  businessId: string;
   initialEnabled: boolean;
 }
 
-export function AutoReplyCard({ businessId, initialEnabled }: AutoReplyCardProps) {
+export function AutoReplyCard({ initialEnabled }: AutoReplyCardProps) {
   const [enabled, setEnabled] = useState(initialEnabled);
   const [loading, setLoading] = useState(false);
 

@@ -390,6 +390,11 @@ export default function LandingPage() {
           <div className="flex items-center mb-4 md:mb-0">
             <span className="text-xl font-bold text-gray-900">Respondly</span>
           </div>
+          <div className="flex items-center gap-6 text-sm text-gray-500 mb-4 md:mb-0">
+            <Link href="/terms" className="hover:text-gray-900 transition-colors">
+              Terms & Conditions
+            </Link>
+          </div>
           <div className="text-gray-500 text-sm">
             &copy; {new Date().getFullYear()} Respondly. All rights reserved.
           </div>

@@ -132,18 +132,6 @@ export default function OnboardingPage() {
                   >
                     Go to Dashboard
                   </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      showToast({
-                        type: "info",
-                        message: "Next step: connect your Google Business Profile (coming soon).",
-                      })
-                    }
-                  >
-                    Connect Google (next)
-                  </Button>
                 </div>
               </div>
             ) : (

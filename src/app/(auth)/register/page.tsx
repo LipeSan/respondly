@@ -148,6 +148,18 @@ export default function RegisterPage() {
               Sign in
             </Link>
           </div>
+
+          <div className="text-center mt-4">
+            <Text variant="body" as="span" className="text-xs text-gray-500">
+              By creating an account, you agree to our{" "}
+            </Text>
+            <Text variant="link" as={Link} href="/terms" className="text-xs">
+              Terms & Conditions
+            </Text>
+            <Text variant="body" as="span" className="text-xs text-gray-500">
+              .
+            </Text>
+          </div>
         </form>
       </div>
     </div>

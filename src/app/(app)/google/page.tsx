@@ -484,7 +484,7 @@ export default function GoogleSetupPage() {
                     ) : saveState === "error" ? (
                         <div className="space-y-2">
                             <Text variant="body" className="text-gray-700">
-                                Couldn't sync reviews right now.
+                                Couldn&apos;t sync reviews right now.
                             </Text>
                             <div className="rounded-xl border border-red-100 bg-red-50 p-4">
                                 <Text variant="body" className="text-sm text-red-700 font-medium">
@@ -576,7 +576,7 @@ export default function GoogleSetupPage() {
                     ) : disconnectState === "error" ? (
                         <div className="space-y-2">
                             <Text variant="body" className="text-gray-700">
-                                Couldn't remove the connection right now.
+                                Couldn&apos;t remove the connection right now.
                             </Text>
                             <div className="rounded-xl border border-red-100 bg-red-50 p-4">
                                 <Text variant="body" className="text-sm text-red-700 font-medium">

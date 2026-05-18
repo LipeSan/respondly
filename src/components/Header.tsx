@@ -189,6 +189,15 @@ export function Header({ businessName }: HeaderProps) {
                     </Text>
                   </div>
                   <div className="my-2 h-px bg-gray-100" />
+                  <Link
+                    href="/account"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="block px-4 py-2 hover:bg-gray-50 transition-colors"
+                  >
+                    <Text variant="body" className="text-sm text-gray-700">
+                      Account settings
+                    </Text>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => signOut()}
