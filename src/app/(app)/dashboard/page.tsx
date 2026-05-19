@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
 import { Text } from "@/components/Text";
+import { Analytics } from "@vercel/analytics/next";
 import {
   ResponsiveContainer,
   LineChart as RechartsLineChart,
@@ -107,6 +108,7 @@ function ChartTooltip({
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
+      <Analytics/>
       {label && (
         <div className="text-xs font-semibold text-gray-900">
           {formatDayLabel(label)}
