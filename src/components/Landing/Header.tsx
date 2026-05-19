@@ -8,7 +8,11 @@ import { Button } from "@/components/Button";
 const LOGO_FULL =
   "https://customer-assets.emergentagent.com/job_17dcd17d-45d3-4f6d-87e8-719aa8db2423/artifacts/vqd0isba_background_removal%23TUFIQl9wbFp5VHcjMSM2Y2FmMjhhNTNhMzRiYzBiNTFlMTQ3ZGQxNmEyZTRmMCMzNzIjI1RSQU5TRk9STUFUSU9OX1JFUVVFU1Q.png";
 
-export default function Header() {
+type HeaderProps = {
+  showNav?: boolean;
+};
+
+export default function Header({ showNav = true }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -42,12 +46,22 @@ export default function Header() {
           />
         </a>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
-          <button onClick={() => scrollToId("how")} data-testid="nav-how" className="hover:text-white transition">How it works</button>
-          <button onClick={() => scrollToId("features")} data-testid="nav-features" className="hover:text-white transition">Features</button>
-          <button onClick={() => scrollToId("pricing")} data-testid="nav-pricing" className="hover:text-white transition">Pricing</button>
-          <button onClick={() => scrollToId("faq")} data-testid="nav-faq" className="hover:text-white transition">FAQ</button>
-        </nav>
+        {showNav ? (
+          <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
+            <button onClick={() => scrollToId("how")} data-testid="nav-how" className="hover:text-white transition">
+              How it works
+            </button>
+            <button onClick={() => scrollToId("features")} data-testid="nav-features" className="hover:text-white transition">
+              Features
+            </button>
+            <button onClick={() => scrollToId("pricing")} data-testid="nav-pricing" className="hover:text-white transition">
+              Pricing
+            </button>
+            <button onClick={() => scrollToId("faq")} data-testid="nav-faq" className="hover:text-white transition">
+              FAQ
+            </button>
+          </nav>
+        ) : null}
 
         <div className="flex items-center gap-3">
           <Link href="/login" data-testid="header-login-btn">

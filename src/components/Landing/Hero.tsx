@@ -1,55 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles, Star } from "lucide-react";
-import { toast } from "sonner";
+import { Sparkles, Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 
 const HERO_BG =
   "https://static.prod-images.emergentagent.com/jobs/17dcd17d-45d3-4f6d-87e8-719aa8db2423/images/4ecbf194628f52651df8101b38e3e476a0be2be45e3e4ca4aad16754f0ad3632.png";
 
-type LeadPayload = {
-  email: string;
-  source?: string;
-};
-
-async function submitLead(payload: LeadPayload) {
-  try {
-    const res = await fetch("/api/leads", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) return;
-  } catch {
-    return;
-  }
-}
-
 export default function Hero() {
-  const [email, setEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      toast.error("Please enter your email");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await submitLead({ email: email.trim(), source: "hero" });
-      toast.success("You're on the list — we'll be in touch soon.");
-      setEmail("");
-    } catch {
-      toast.error("Could not submit. Try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <section id="top" data-testid="hero-section" className="relative pt-32 pb-24 sm:pt-40 sm:pb-32">
       <div className="absolute inset-0">
@@ -78,34 +38,9 @@ export default function Hero() {
             Respondly replies to every Google review for you — with on-brand templates or AI that actually reads, understands and responds. Reclaim hours every week, protect your rating, and turn every star into trust.
           </p>
 
-          {/* <form data-testid="hero-lead-form" onSubmit={onSubmit} className="mt-10 flex flex-col sm:flex-row gap-3 max-w-lg">
-            <input
-              data-testid="hero-email-input"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@business.com"
-              className="flex-1 rounded-lg bg-zinc-900/70 border border-zinc-800 px-4 py-3 text-white placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-            />
-            <div className="sm:min-w-48">
-              <Button
-                data-testid="hero-submit-btn"
-                type="submit"
-                disabled={submitting}
-                isLoading={submitting}
-                className="shadow-[0_0_30px_-6px_rgba(34,197,94,0.55)]"
-              >
-                Get Early Access <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </form> */}
-
-          <div className="mt-4 max-w-lg">
-            <Link href="/register">
-              <Button variant="outline" className="!w-auto !px-6 !py-3 !bg-transparent !text-white !border-white/20 hover:!border-white/40">
-                Start for Free
-              </Button>
+          <div className="mt-10 max-w-lg">
+            <Link href="/register" data-testid="hero-start">
+              <Button className="!w-auto !px-8 shadow-[0_0_30px_-6px_rgba(34,197,94,0.55)]">Start for Free</Button>
             </Link>
           </div>
 

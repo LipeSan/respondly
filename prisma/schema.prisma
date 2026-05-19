@@ -244,3 +244,12 @@ model PaymentHistory {
   @@index([businessId, createdAt])
   @@index([stripeInvoiceId])
 }
+
+model ContactMessage {
+  id          String   @id @default(cuid())
+  email       String
+  description String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}

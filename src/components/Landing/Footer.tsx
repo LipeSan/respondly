@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 const LOGO_FULL =
 "https://customer-assets.emergentagent.com/job_17dcd17d-45d3-4f6d-87e8-719aa8db2423/artifacts/vqd0isba_background_removal%23TUFIQl9wbFp5VHcjMSM2Y2FmMjhhNTNhMzRiYzBiNTFlMTQ3ZGQxNmEyZTRmMCMzNzIjI1RSQU5TRk9STUFUSU9OX1JFUVVFU1Q.png";
@@ -26,9 +27,9 @@ export default function Footer() {
         <div>
           <h5 className="font-heading text-xs uppercase tracking-[0.2em] text-zinc-400 font-semibold">Company</h5>
           <ul className="mt-4 space-y-2 text-sm text-zinc-500">
-            <li><a href="#cta" className="hover:text-white transition">Contact</a></li>
-            <li><a href="#" className="hover:text-white transition">Privacy</a></li>
-            <li><a href="#" className="hover:text-white transition">Terms</a></li>
+            <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
+            <li><Link href="/privacy" className="hover:text-white transition">Privacy</Link></li>
+            <li><Link href="/terms" className="hover:text-white transition">Terms</Link></li>
           </ul>
         </div>
       </div>
