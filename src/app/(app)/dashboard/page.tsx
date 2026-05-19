@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
 import { Text } from "@/components/Text";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 import {
   ResponsiveContainer,
   LineChart as RechartsLineChart,

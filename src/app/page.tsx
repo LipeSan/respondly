@@ -9,7 +9,7 @@ import Pricing from "../components/Landing/Pricing";
 import FAQ from "../components/Landing/FAQ";
 import FinalCTA from "../components/Landing/FinalCTA";
 import Footer from "../components/Landing/Footer";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/react"
 
 export default function LandingPage() {
   return (
