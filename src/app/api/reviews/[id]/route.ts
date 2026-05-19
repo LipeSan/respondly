@@ -9,7 +9,12 @@ export async function GET(
 ) {
   const params = await props.params;
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const review = await prisma.review.findFirst({
     where: { id: params.id, businessId: business.id },
@@ -35,7 +40,12 @@ export async function POST(
 ) {
   const params = await props.params;
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const requestedFinalTextRaw = typeof body?.finalText === "string" ? body.finalText : null;

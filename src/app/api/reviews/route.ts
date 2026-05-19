@@ -7,7 +7,12 @@ type ReviewStatus = "pending" | "responded" | "failed" | "skipped";
 
 export async function GET(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const url = new URL(req.url);
   const status = url.searchParams.get("status"); // pending | responded | failed | skipped | all

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/Text";
 import { Textarea } from "@/components/Textarea";
@@ -59,6 +60,7 @@ function getStatusBadge(r: Review) {
 }
 
 export default function ReviewsPage() {
+  const router = useRouter();
   const { showToast } = useToast();
   const [status, setStatus] = useState<"all" | "pending" | "responded" | "failed" | "skipped">("all");
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,16 @@ export default function ReviewsPage() {
     try {
       const res = await fetch(`/api/reviews?status=${status}&take=100`, { cache: "no-store" });
       const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to load reviews");
       setItems(data.reviews ?? []);
     } catch (e) {
@@ -104,6 +116,16 @@ export default function ReviewsPage() {
     try {
       const res = await fetch(`/api/reviews/${id}`, { cache: "no-store" });
       const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to load review");
       setDetail(data.review);
     } catch (e) {
@@ -125,6 +147,16 @@ export default function ReviewsPage() {
         body: JSON.stringify({ finalText: draftText }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to publish");
       showToast({ type: "success", message: "Reply published successfully." });
       await Promise.all([load(), openReview(detail.id)]);

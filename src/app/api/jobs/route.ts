@@ -4,7 +4,12 @@ import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 
 export async function GET() {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const jobs = await prisma.jobRun.findMany({
     where: { businessId: business.id },

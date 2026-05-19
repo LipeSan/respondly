@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { Modal } from "@/components/Modal";
@@ -42,6 +43,7 @@ function getErrorMessage(e: unknown) {
 }
 
 export default function RulesPage() {
+  const router = useRouter();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -91,6 +93,18 @@ export default function RulesPage() {
       const tData = await tRes.json();
       const rData = await rRes.json();
       const sData = await sRes.json().catch(() => ({}));
+
+      if (tRes.status === 401 || rRes.status === 401 || sRes.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+
+      if (tData?.code === "NO_BUSINESS" || rData?.code === "NO_BUSINESS" || sData?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
 
       if (!tRes.ok) throw new Error(tData?.error || "Failed to load templates");
       if (!rRes.ok) throw new Error(rData?.error || "Failed to load rules");
@@ -178,6 +192,16 @@ export default function RulesPage() {
       });
 
       const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to save rule");
 
       await load();
@@ -202,6 +226,16 @@ export default function RulesPage() {
     try {
       const res = await fetch(`/api/rules?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return false;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return false;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to delete rule");
       await load();
       if (selectedId === id) setSelectedId(null);

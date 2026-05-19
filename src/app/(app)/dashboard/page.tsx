@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
 import { Text } from "@/components/Text";
-import { Analytics } from "@vercel/analytics/next"
 import {
   ResponsiveContainer,
   LineChart as RechartsLineChart,
@@ -344,6 +343,10 @@ export default function DashboardPage() {
         return;
       }
       const data = await res.json().catch(() => ({}));
+      if (res.status === 400 && (data?.code === "NO_BUSINESS" || data?.error === "No business")) {
+        setMetrics(null);
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to load dashboard metrics");
       setMetrics(data as DashboardMetrics);
     } catch (e) {
@@ -479,7 +482,6 @@ export default function DashboardPage() {
 
   return (
     <div className="pb-12">
-      <Analytics/>
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>

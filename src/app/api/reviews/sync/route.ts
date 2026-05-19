@@ -4,7 +4,12 @@ import { syncReviewsForBusiness } from "@/lib/reviews/sync";
 
 export async function POST(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const body = await req.json().catch(() => ({}));
   const source = body?.source as "google" | "mock" | undefined;

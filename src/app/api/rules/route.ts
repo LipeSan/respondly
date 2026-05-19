@@ -17,7 +17,12 @@ function parseResponseMethod(v: unknown): ResponseMethod {
 
 export async function GET() {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const rules = await prisma.reviewRule.findMany({
     where: { businessId: business.id },
@@ -30,7 +35,12 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const body = await req.json();
 
@@ -76,7 +86,12 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const body = await req.json();
 
@@ -122,7 +137,12 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const url = new URL(req.url);
   const id = String(url.searchParams.get("id") ?? "").trim();

@@ -13,7 +13,12 @@ type LocationsList = {
 
 export async function GET(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const url = new URL(req.url);
   const accountName = url.searchParams.get("account"); // ex: accounts/123

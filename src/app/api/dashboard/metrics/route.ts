@@ -27,7 +27,12 @@ function addDaysUtc(d: Date, days: number) {
 
 export async function GET(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const subscription = await prisma.subscription.findUnique({
     where: { businessId: business.id },

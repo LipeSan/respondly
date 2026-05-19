@@ -69,6 +69,16 @@ export default function GoogleSetupPage() {
         try {
             const res = await fetch("/api/google/accounts");
             const data = await safeJson(res);
+            if (res.status === 401) {
+                router.push("/login");
+                router.refresh();
+                return;
+            }
+            if (data?.code === "NO_BUSINESS") {
+                router.push("/onboarding");
+                router.refresh();
+                return;
+            }
             if (!res.ok) throw new Error(data?.error || "Failed to load accounts");
             setAccounts(data.accounts ?? []);
             // auto select first
@@ -91,6 +101,16 @@ export default function GoogleSetupPage() {
         try {
             const res = await fetch(`/api/google/locations?account=${encodeURIComponent(accountName)}`);
             const data = await safeJson(res);
+            if (res.status === 401) {
+                router.push("/login");
+                router.refresh();
+                return;
+            }
+            if (data?.code === "NO_BUSINESS") {
+                router.push("/onboarding");
+                router.refresh();
+                return;
+            }
             if (!res.ok) throw new Error(data?.error || "Failed to load locations");
             setLocations(data.locations ?? []);
             if ((data.locations ?? []).length > 0) {
@@ -125,6 +145,16 @@ export default function GoogleSetupPage() {
             });
 
             const data = await safeJson(res);
+            if (res.status === 401) {
+                router.push("/login");
+                router.refresh();
+                return;
+            }
+            if (data?.code === "NO_BUSINESS") {
+                router.push("/onboarding");
+                router.refresh();
+                return;
+            }
             if (!res.ok) throw new Error(data?.error || "Failed to save location");
 
             setSaveSync(data?.sync ?? null);
@@ -149,6 +179,16 @@ export default function GoogleSetupPage() {
         try {
             const res = await fetch("/api/google/disconnect", { method: "POST" });
             const data = await safeJson(res);
+            if (res.status === 401) {
+                router.push("/login");
+                router.refresh();
+                return;
+            }
+            if (data?.code === "NO_BUSINESS") {
+                router.push("/onboarding");
+                router.refresh();
+                return;
+            }
             if (!res.ok) throw new Error(data?.error || "Failed to disconnect Google");
 
             setAccounts([]);

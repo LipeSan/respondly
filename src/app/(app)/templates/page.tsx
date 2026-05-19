@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { Textarea } from "@/components/Textarea";
@@ -29,6 +30,7 @@ function getErrorMessage(e: unknown) {
 }
 
 export default function TemplatesPage() {
+  const router = useRouter();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,6 +57,16 @@ export default function TemplatesPage() {
     try {
       const res = await fetch("/api/templates", { cache: "no-store" });
       const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to load templates");
       setTemplates(data.templates ?? []);
     } catch (e: unknown) {
@@ -83,6 +95,16 @@ export default function TemplatesPage() {
         body: JSON.stringify({ name: form.name, body: form.body }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to create template");
       await load();
       setSelectedId(data.template.id);
@@ -106,6 +128,16 @@ export default function TemplatesPage() {
         body: JSON.stringify({ id: form.id, name: form.name, body: form.body }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to update template");
       await load();
       showToast({ type: "success", message: "Template updated successfully." });
@@ -126,6 +158,16 @@ export default function TemplatesPage() {
         method: "DELETE",
       });
       const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        router.refresh();
+        return false;
+      }
+      if (data?.code === "NO_BUSINESS") {
+        router.push("/onboarding");
+        router.refresh();
+        return false;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to delete template");
       await load();
       if (selectedId === id) setSelectedId(null);

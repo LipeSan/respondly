@@ -8,7 +8,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const { user, business } = await getCurrentUserAndBusiness();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const url = new URL(req.url);
   const takeRaw = Number(url.searchParams.get("take") ?? 20);

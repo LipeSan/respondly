@@ -18,7 +18,12 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const { business } = await getCurrentUserAndBusiness();
-  if (!business) return NextResponse.json({ apiVersion: API_VERSION, error: "No business" }, { status: 400 });
+  if (!business) {
+    return NextResponse.json(
+      { apiVersion: API_VERSION, error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
   const body = await req.json();
   const accountName = String(body.accountName ?? "").trim(); // "accounts/123"

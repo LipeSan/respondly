@@ -9,6 +9,8 @@ import { Text } from "./Text";
 
 interface HeaderProps {
   businessName?: string;
+  userName?: string;
+  userEmail?: string;
 }
 
 function NavIcon({ name, className }: { name: string; className: string }) {
@@ -71,10 +73,17 @@ function NavIcon({ name, className }: { name: string; className: string }) {
   );
 }
 
-export function Header({ businessName }: HeaderProps) {
+export function Header({ businessName, userName, userEmail }: HeaderProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const pathname = usePathname();
+
+  const hasBusiness = Boolean(businessName);
+  const displayName =
+    businessName ||
+    (userName ? userName.trim() : "") ||
+    (userEmail ? userEmail.split("@")[0] : "") ||
+    "";
 
   const navItems = [
     { name: "Dashboard", href: "/dashboard" },
@@ -103,21 +112,23 @@ export function Header({ businessName }: HeaderProps) {
             </Link>
           </div>
 
-          {businessName && (
+          {(displayName || userEmail) && (
             <div className="relative flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileNavOpen((v) => !v);
-                  setIsUserMenuOpen(false);
-                }}
-                className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
-                aria-label="Open menu"
-              >
-                <svg className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
+              {hasBusiness && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileNavOpen((v) => !v);
+                    setIsUserMenuOpen(false);
+                  }}
+                  className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                  aria-label="Open menu"
+                >
+                  <svg className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -129,10 +140,10 @@ export function Header({ businessName }: HeaderProps) {
                 aria-label="Open user menu"
               >
                 <Text variant="body" className="hidden sm:block text-sm">
-                  Hello, {businessName}
+                  Hello, {displayName || userEmail}
                 </Text>
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-green-400 flex items-center justify-center text-white font-bold text-sm hover:opacity-90 transition-opacity">
-                  {businessName.substring(0, 2).toUpperCase()}
+                  {(displayName || userEmail || "A").substring(0, 2).toUpperCase()}
                 </div>
               </button>
 
@@ -146,7 +157,7 @@ export function Header({ businessName }: HeaderProps) {
                 />
               )}
 
-              {isMobileNavOpen && (
+              {isMobileNavOpen && hasBusiness && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 md:hidden">
                   <div className="px-4 py-2">
                     <Text variant="body" className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -189,6 +200,17 @@ export function Header({ businessName }: HeaderProps) {
                     </Text>
                   </div>
                   <div className="my-2 h-px bg-gray-100" />
+                  {!hasBusiness && (
+                    <Link
+                      href="/onboarding"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="block px-4 py-2 hover:bg-gray-50 transition-colors"
+                    >
+                      <Text variant="body" className="text-sm text-gray-700">
+                        Create business
+                      </Text>
+                    </Link>
+                  )}
                   <Link
                     href="/account"
                     onClick={() => setIsUserMenuOpen(false)}

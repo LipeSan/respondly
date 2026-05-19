@@ -10,10 +10,15 @@ type AccountsList = {
 };
 
 export async function GET() {
-  try {
-    const { business } = await getCurrentUserAndBusiness();
-    if (!business) return NextResponse.json({ error: "No business" }, { status: 400 });
+  const { business } = await getCurrentUserAndBusiness();
+  if (!business) {
+    return NextResponse.json(
+      { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
+      { status: 400 },
+    );
+  }
 
+  try {
     // ✅ cache 10 minutes (aggressive to avoid hitting quota)
     const cacheKey = `google:accounts:${business.id}`;
     const cached = getCache<GoogleAccount[]>(cacheKey);
