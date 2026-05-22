@@ -1,38 +1,8 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
-
-async function sendEmail(args: { to: string; subject: string; html: string; text: string }) {
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const emailFrom = process.env.EMAIL_FROM;
-
-  if (resendApiKey && emailFrom) {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: emailFrom,
-        to: [args.to],
-        subject: args.subject,
-        html: args.html,
-        text: args.text,
-      }),
-    });
-
-    if (!res.ok) {
-      const raw = await res.text();
-      throw new Error(raw || `Email send failed (${res.status})`);
-    }
-    return;
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    console.log("Email not configured. Skipping send.", { to: args.to, subject: args.subject });
-  }
-}
+import { sendEmail } from "@/lib/email/sendEmail";
+import { buildResetPasswordEmail } from "@/lib/email/templates";
 
 function sha256Hex(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex");
@@ -79,24 +49,10 @@ export async function POST(req: Request) {
 
       const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(token)}`;
       if (process.env.NODE_ENV !== "production") devResetUrl = resetUrl;
-
-      const subject = "Reset your Respondly password";
-      const text = `Use the link below to reset your password:\n\n${resetUrl}\n\nThis link expires in 1 hour.`;
-      const html = `
-        <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; line-height: 1.5;">
-          <h2 style="margin: 0 0 12px;">Reset your password</h2>
-          <p style="margin: 0 0 16px;">Click the button below to reset your Respondly password. This link expires in 1 hour.</p>
-          <p style="margin: 0 0 16px;">
-            <a href="${resetUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; padding: 10px 14px; border-radius: 8px; text-decoration: none; font-weight: 700;">
-              Reset password
-            </a>
-          </p>
-          <p style="margin: 0; color: #6b7280; font-size: 12px;">If you didn't request this, you can ignore this email.</p>
-        </div>
-      `;
+      const content = buildResetPasswordEmail({ resetUrl });
 
       try {
-        await sendEmail({ to: user.email, subject, html, text });
+        await sendEmail({ to: user.email, ...content });
       } catch (err) {
         if (process.env.NODE_ENV !== "production") {
           console.error("Forgot password email send failed", err);
