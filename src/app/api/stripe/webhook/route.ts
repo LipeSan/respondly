@@ -259,6 +259,23 @@ export async function POST(req: Request) {
     }
   }
 
+  async function updatePaidInvoiceStatus(args: { stripeInvoiceId: string; status: string }) {
+    const updated = await prisma.paymentHistory.updateMany({
+      where: {
+        stripeInvoiceId: args.stripeInvoiceId,
+        stripeEventType: { in: ["invoice.paid", "invoice.payment_succeeded"] },
+      },
+      data: { status: args.status },
+    });
+    if (updated.count > 0) {
+      console.log("[stripe:webhook] updated paid invoice status", {
+        stripeInvoiceId: args.stripeInvoiceId,
+        status: args.status,
+        count: updated.count,
+      });
+    }
+  }
+
   // 1) Checkout completed (always save IDs; try to enrich with status and currentPeriodEnd)
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
@@ -468,7 +485,7 @@ export async function POST(req: Request) {
   }
 
   // 2) Invoice paid = definitive confirmation (best signal to unlock features)
-  if (event.type === "invoice.paid") {
+  if (event.type === "invoice.paid" || event.type === "invoice.payment_succeeded") {
     const invoice = event.data.object as Stripe.Invoice;
     type InvoiceWithSubscription = Stripe.Invoice & {
       subscription?: string | Stripe.Subscription | null;
@@ -485,6 +502,10 @@ export async function POST(req: Request) {
 
     const customerId = normalizeStripeId(inv.customer);
     const sub = (await stripe.subscriptions.retrieve(subId)) as SubscriptionWithPeriodEnd;
+    const businessIdFromSubMetadata =
+      typeof (sub as unknown as { metadata?: Record<string, unknown> }).metadata?.businessId === "string"
+        ? String((sub as unknown as { metadata?: Record<string, unknown> }).metadata?.businessId ?? "").trim()
+        : "";
     const currentPeriodEnd = await getCurrentPeriodEndFromInvoiceOrSub({
       sub,
       invoiceLines: inv.lines,
@@ -519,7 +540,25 @@ export async function POST(req: Request) {
       });
     }
 
-    const businessId = await findBusinessIdFromStripeIds({ customerId, subscriptionId: sub.id });
+    const dbBusinessId = await findBusinessIdFromStripeIds({ customerId, subscriptionId: sub.id });
+    const resolvedBusinessId = dbBusinessId || businessIdFromSubMetadata || null;
+
+    if (!dbBusinessId && businessIdFromSubMetadata) {
+      const priceId = sub.items?.data?.[0]?.price?.id ?? null;
+      const plan = derivePlanFromPrice(priceId);
+      await upsertSubscription({
+        businessId: businessIdFromSubMetadata,
+        plan,
+        status: sub.status,
+        cancelAtPeriodEnd,
+        cancelAt,
+        stripeCustomerId: customerId ?? undefined,
+        stripeSubscriptionId: sub.id,
+        currentPeriodEnd: currentPeriodEnd ?? undefined,
+      });
+    }
+
+    const businessId = resolvedBusinessId;
     if (businessId) {
       const invoiceAny = invoice as unknown as {
         payment_intent?: unknown;
@@ -603,6 +642,17 @@ export async function POST(req: Request) {
         invoicePdf: typeof invoiceAny.invoice_pdf === "string" ? invoiceAny.invoice_pdf : null,
         rawEvent: event,
       });
+
+      await prisma.subscription.updateMany({
+        where: {
+          OR: [
+            { businessId },
+            ...(customerId ? [{ stripeCustomerId: customerId }] : []),
+            ...(subId ? [{ stripeSubscriptionId: subId }] : []),
+          ],
+        },
+        data: { status: "past_due" },
+      });
     } else {
       console.warn("[stripe:webhook] invoice.payment_failed: businessId not found", {
         customerId,
@@ -644,6 +694,114 @@ export async function POST(req: Request) {
         currency: charge.currency ?? null,
         paidAt: createdAt,
         rawEvent: event,
+      });
+      if (invoiceId) {
+        await updatePaidInvoiceStatus({ stripeInvoiceId: invoiceId, status: "refunded" });
+      }
+    }
+
+    return NextResponse.json({ received: true });
+  }
+
+  if (
+    event.type === "charge.dispute.created" ||
+    event.type === "charge.dispute.updated" ||
+    event.type === "charge.dispute.funds_withdrawn" ||
+    event.type === "charge.dispute.funds_reinstated" ||
+    event.type === "charge.dispute.closed"
+  ) {
+    const dispute = event.data.object as Stripe.Dispute;
+    const chargeId = typeof dispute.charge === "string" ? dispute.charge : null;
+
+    let charge: Stripe.Charge | null = null;
+    if (chargeId) {
+      try {
+        charge = (await stripe.charges.retrieve(chargeId)) as Stripe.Charge;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[stripe:webhook] charge.dispute.* failed to retrieve charge", { chargeId, error: msg });
+      }
+    }
+
+    const customerId = normalizeStripeId((charge as unknown as { customer?: unknown })?.customer);
+    const invoiceIdRaw = (charge as unknown as { invoice?: unknown })?.invoice ?? null;
+    const invoiceId = invoiceIdRaw ? String(invoiceIdRaw) : null;
+
+    const businessId = await findBusinessIdFromStripeIds({ customerId, subscriptionId: null });
+    if (businessId) {
+      const disputeAmount = typeof dispute.amount === "number" ? dispute.amount : null;
+      const disputeCurrency = dispute.currency ?? null;
+      const disputeStatus = dispute.status ?? null;
+      console.log("[stripe:webhook] charge.dispute.* identifiers", {
+        type: event.type,
+        disputeId: dispute.id,
+        chargeId,
+        customerId,
+        invoiceId,
+        status: disputeStatus,
+        amount: disputeAmount,
+        currency: disputeCurrency,
+      });
+
+      await recordPaymentHistory({
+        businessId,
+        stripeEventId: event.id,
+        stripeEventType: event.type,
+        status: disputeStatus ? String(disputeStatus) : "dispute",
+        stripeInvoiceId: invoiceId,
+        stripePaymentIntentId: dispute.payment_intent ? String(dispute.payment_intent) : null,
+        stripeCustomerId: customerId,
+        amount: disputeAmount,
+        currency: disputeCurrency ? String(disputeCurrency) : null,
+        rawEvent: event,
+      });
+
+      if (invoiceId) {
+        await updatePaidInvoiceStatus({
+          stripeInvoiceId: invoiceId,
+          status: disputeStatus ? String(disputeStatus) : "dispute",
+        });
+      }
+
+      const blockedDisputeStatuses = new Set([
+        "needs_response",
+        "warning_needs_response",
+        "under_review",
+        "warning_under_review",
+        "lost",
+      ]);
+      const isBlocked = disputeStatus ? blockedDisputeStatuses.has(String(disputeStatus)) : false;
+
+      if (isBlocked) {
+        let subscriptionId: string | null = null;
+        if (invoiceId) {
+          try {
+            const inv = (await stripe.invoices.retrieve(invoiceId)) as Stripe.Invoice;
+            const invAny = inv as unknown as { subscription?: unknown };
+            subscriptionId = normalizeStripeId(invAny.subscription);
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error("[stripe:webhook] charge.dispute.* failed to retrieve invoice", { invoiceId, error: msg });
+          }
+        }
+
+        await prisma.subscription.updateMany({
+          where: {
+            OR: [
+              { businessId },
+              ...(customerId ? [{ stripeCustomerId: customerId }] : []),
+              ...(subscriptionId ? [{ stripeSubscriptionId: subscriptionId }] : []),
+            ],
+          },
+          data: { status: "past_due" },
+        });
+      }
+    } else {
+      console.warn("[stripe:webhook] charge.dispute.*: businessId not found", {
+        type: event.type,
+        chargeId,
+        customerId,
+        invoiceId,
       });
     }
 

@@ -26,9 +26,16 @@ type PaymentHistoryItem = {
     currency: string | null;
     paidAt: string | null;
     createdAt: string;
+    stripeEventType: string;
     stripeInvoiceId: string | null;
+    stripePaymentIntentId: string | null;
     hostedInvoiceUrl: string | null;
     invoicePdf: string | null;
+    lastEvent: null | {
+        status: string;
+        stripeEventType: string;
+        createdAt: string;
+    };
 };
 
 function formatMoney(amount: number | null, currency: string | null) {
@@ -58,7 +65,7 @@ export default function SubscriptionPage() {
         try {
             const [res, historyRes] = await Promise.all([
                 fetch("/api/businesses", { cache: "no-store" }),
-                fetch("/api/billing/history?take=20", { cache: "no-store" }),
+                fetch("/api/billing/history?take=20&eventType=invoice.paid", { cache: "no-store" }),
             ]);
 
             if (res.status === 401 || historyRes.status === 401) {
@@ -351,34 +358,70 @@ export default function SubscriptionPage() {
                                         <th className="py-2 pr-4 font-semibold">Date</th>
                                         <th className="py-2 pr-4 font-semibold">Status</th>
                                         <th className="py-2 pr-4 font-semibold">Amount</th>
+                                        <th className="py-2 pr-4 font-semibold">Last update</th>
                                         <th className="py-2 pr-4 font-semibold">Invoice</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {paymentHistory.map((p) => {
-                                        const when = p.paidAt ?? p.createdAt;
+                                        const baseWhen = p.paidAt ?? p.createdAt;
+                                        const latestWhen = p.lastEvent?.createdAt ?? baseWhen;
+                                        const status = p.lastEvent?.status ?? p.status;
                                         const link = p.hostedInvoiceUrl ?? p.invoicePdf;
+                                        const isDispute =
+                                            status === "needs_response" ||
+                                            status === "warning_needs_response" ||
+                                            status === "under_review" ||
+                                            status === "warning_under_review" ||
+                                            status === "warning_closed" ||
+                                            status === "won" ||
+                                            status === "lost" ||
+                                            status === "dispute";
                                         const badge =
-                                            p.status === "paid"
+                                            status === "paid"
                                                 ? "bg-emerald-100 text-emerald-800"
-                                                : p.status === "payment_failed"
+                                                : status === "payment_failed"
                                                     ? "bg-red-100 text-red-800"
-                                                    : p.status === "refunded"
+                                                : status === "refunded"
                                                         ? "bg-gray-100 text-gray-800"
+                                                : isDispute && (status === "won" || status === "warning_closed")
+                                                    ? "bg-gray-100 text-gray-800"
+                                                : isDispute && status === "lost"
+                                                    ? "bg-red-100 text-red-800"
+                                                : isDispute && (status === "under_review" || status === "warning_under_review")
+                                                    ? "bg-amber-100 text-amber-800"
+                                                : isDispute
+                                                    ? "bg-red-100 text-red-800"
                                                         : "bg-amber-100 text-amber-800";
                                         const statusLabel =
-                                            p.status === "payment_failed"
+                                            status === "payment_failed"
                                                 ? "Payment failed"
-                                                : p.status === "paid"
+                                                : status === "paid"
                                                     ? "Paid"
-                                                    : p.status === "refunded"
+                                                    : status === "refunded"
                                                         ? "Refunded"
-                                                        : p.status;
+                                            : status === "needs_response"
+                                                ? "Dispute: needs response"
+                                            : status === "warning_needs_response"
+                                                ? "Dispute warning: needs response"
+                                            : status === "under_review"
+                                                ? "Dispute: under review"
+                                            : status === "warning_under_review"
+                                                ? "Dispute warning: under review"
+                                            : status === "warning_closed"
+                                                ? "Dispute warning: closed"
+                                            : status === "won"
+                                                ? "Dispute: won"
+                                            : status === "lost"
+                                                ? "Dispute: lost"
+                                            : status === "dispute"
+                                                ? "Dispute"
+                                                        : status;
 
                                         return (
                                             <tr key={p.id} className="text-gray-700">
                                                 <td className="py-3 pr-4 whitespace-nowrap">
-                                                    {new Date(when).toLocaleString()}
+                                                    {new Date(baseWhen).toLocaleString()}
                                                 </td>
                                                 <td className="py-3 pr-4 whitespace-nowrap">
                                                     <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badge}`}>
@@ -387,6 +430,20 @@ export default function SubscriptionPage() {
                                                 </td>
                                                 <td className="py-3 pr-4 whitespace-nowrap">
                                                     {formatMoney(p.amount, p.currency)}
+                                                </td>
+                                                <td className="py-3 pr-4 whitespace-nowrap">
+                                                    {p.lastEvent ? (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-gray-700">
+                                                                {new Date(latestWhen).toLocaleString()}
+                                                            </span>
+                                                            <span className="text-gray-500 text-xs">
+                                                                {p.lastEvent.status} · {p.lastEvent.stripeEventType}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-500">—</span>
+                                                    )}
                                                 </td>
                                                 <td className="py-3 pr-4 whitespace-nowrap">
                                                     {link ? (

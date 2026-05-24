@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 import { Prisma } from "@prisma/client";
+import { canUseAI, getBusinessPlan } from "@/lib/plan";
 
 export async function GET() {
   const { business } = await getCurrentUserAndBusiness();
@@ -46,13 +47,8 @@ export async function PUT(req: Request) {
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "aiSettings")) {
-    const subscription = await prisma.subscription.findUnique({
-      where: { businessId: business.id },
-      select: { plan: true, status: true },
-    });
-
-    const canEditAi =
-      subscription?.plan === "pro" && (subscription.status === "active" || subscription.status === "trialing");
+    const plan = await getBusinessPlan(business.id);
+    const canEditAi = canUseAI(plan.plan);
 
     if (!canEditAi) {
       return NextResponse.json({ error: "AI settings are available only on the Pro plan" }, { status: 403 });

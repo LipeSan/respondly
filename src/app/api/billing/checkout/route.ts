@@ -238,6 +238,9 @@ export async function POST(req: Request) {
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        metadata: { businessId: business.id, plan },
+      },
       success_url: `${appUrl}/configuration?billing=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/configuration?billing=cancel`,
       allow_promotion_codes: true,

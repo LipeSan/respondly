@@ -20,6 +20,16 @@ function isActiveSubscriptionStatus(status: string | null | undefined) {
   return status === "active" || status === "trialing";
 }
 
+const blockedBillingStatuses = new Set([
+  "payment_failed",
+  "refunded",
+  "needs_response",
+  "warning_needs_response",
+  "under_review",
+  "warning_under_review",
+  "lost",
+]);
+
 async function getDebugReviews(businessId: string) {
   const reviews = await prisma.review.findMany({
     where: {
@@ -82,6 +92,15 @@ async function handle(req: Request) {
           cancelAt: true,
         },
       },
+      paymentHistory: {
+        select: {
+          status: true,
+          stripeEventType: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
     take,
     orderBy: { createdAt: "desc" },
@@ -96,7 +115,10 @@ async function handle(req: Request) {
 
   for (const b of businesses) {
     const subscriptionStatus = b.subscription?.status ?? null;
-    if (!isActiveSubscriptionStatus(subscriptionStatus)) {
+    const latestBillingEvent = b.paymentHistory?.[0] ?? null;
+    const billingBlocked = latestBillingEvent ? blockedBillingStatuses.has(latestBillingEvent.status) : false;
+
+    if (!isActiveSubscriptionStatus(subscriptionStatus) || billingBlocked) {
       results.push({
         businessId: b.id,
         businessName: b.name,
@@ -111,7 +133,20 @@ async function handle(req: Request) {
               cancelAt: b.subscription.cancelAt,
             }
           : null,
-        reason: "subscription_inactive",
+        reason: !isActiveSubscriptionStatus(subscriptionStatus)
+          ? "subscription_inactive"
+          : billingBlocked
+            ? "billing_blocked"
+            : "subscription_inactive",
+        ...(billingBlocked
+          ? {
+              billing: {
+                status: latestBillingEvent?.status ?? null,
+                stripeEventType: latestBillingEvent?.stripeEventType ?? null,
+                createdAt: latestBillingEvent?.createdAt ?? null,
+              },
+            }
+          : null),
         ...(debug ? { debugReviews: await getDebugReviews(b.id) } : null),
       });
       continue;
