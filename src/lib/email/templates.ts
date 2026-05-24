@@ -185,6 +185,63 @@ export function buildResetPasswordEmail(args: { resetUrl: string }): EmailConten
   return { subject, html, text };
 }
 
+export function buildProductInfoEmail(args: { name?: string | null; registerUrl: string }): EmailContent {
+  const displayName = args.name?.trim() ? args.name.trim() : "Hi there";
+  const safeName = escapeHtml(displayName);
+  const origin = safeOriginFromUrl(args.registerUrl);
+  const registerUrl = args.registerUrl;
+
+  const subject = "Meet Respondly — automate replies and win back time";
+  const preheader = "Automate Google review replies with AI and keep your Google Business Profile up to date.";
+  const text =
+    `Hi ${displayName},\n\n` +
+    `Respondly helps local businesses reply to Google reviews faster and more consistently.\n\n` +
+    `Key benefits:\n` +
+    `- Automated replies for Google reviews\n` +
+    `- Templates and rules by rating (1–5 stars)\n` +
+    `- AI-assisted replies for a more natural tone (Pro)\n` +
+    `- Less manual work, more time for your business\n\n` +
+    `Create your account here: ${registerUrl}\n\n` +
+    `— Respondly`;
+
+  const bodyHtml = `
+    <p style="margin: 16px 0 0;">Hi ${safeName},</p>
+    <p style="margin: 12px 0 0;">
+      <strong>Respondly</strong> automates Google review replies so you can save time and keep your online presence consistent.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 16px; border-collapse: separate; border-spacing: 0; border: 1px solid #111827; background: #0b1220; border-radius: 14px;">
+      <tr>
+        <td style="padding: 14px 14px 12px;">
+          <div style="font-weight: 800; color: #ffffff; font-size: 14px; margin: 0 0 10px;">What you get</div>
+          <ul style="margin: 0; padding-left: 18px; color: #e5e7eb;">
+            <li style="margin: 6px 0;">Automated replies for Google reviews</li>
+            <li style="margin: 6px 0;">Rules and templates by rating (1–5 stars)</li>
+            <li style="margin: 6px 0;">AI-assisted replies for a more natural tone (Pro plan)</li>
+            <li style="margin: 6px 0;">A simple dashboard to manage it all</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 16px 0 0; color: #9ca3af; font-size: 13px;">
+      It only takes a few minutes to create an account and connect your Google Business Profile.
+    </p>
+  `;
+
+  const html = renderEmailLayout({
+    subject,
+    title: "Respondly: automate replies",
+    preheader,
+    origin,
+    bodyHtml,
+    cta: { label: "Create account", url: registerUrl },
+    footerText: "If you no longer want to receive emails like this, you can reply to this email.",
+  });
+
+  return { subject, html, text };
+}
+
 function safeOriginFromUrl(url: string) {
   try {
     return new URL(url).origin;
