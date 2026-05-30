@@ -222,6 +222,10 @@ export default function SubscriptionPage() {
         statusLabel = "Active";
         badgeClasses = "bg-emerald-100 border-emerald-200 text-emerald-800";
         dotClasses = "bg-emerald-500";
+    } else if (statusRaw === "trialing") {
+        statusLabel = "Trialing";
+        badgeClasses = "bg-emerald-100 border-emerald-200 text-emerald-800";
+        dotClasses = "bg-emerald-500";
     } else if (statusRaw === "past_due") {
         statusLabel = "Past due";
         badgeClasses = "bg-amber-100 border-amber-200 text-amber-800";

@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
@@ -11,6 +13,7 @@ import { Text } from "@/components/Text";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -59,8 +62,22 @@ export default function RegisterPage() {
       });
 
       if (res.ok) {
-        // Redirect to login after success
-        router.push("/login");
+        const nextRaw = searchParams.get("next");
+        const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/start-trial";
+        const loginRes = await signIn("credentials", {
+          redirect: false,
+          email: formData.email,
+          password: formData.password,
+          callbackUrl: next,
+        });
+
+        if (loginRes?.error) {
+          router.push(`/login?next=${encodeURIComponent(next)}`);
+          return;
+        }
+
+        router.push(next);
+        router.refresh();
       } else {
         const data = await res.json();
         setError(data.error || "Something went wrong");

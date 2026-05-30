@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
@@ -11,6 +11,7 @@ import { Input } from "@/components/Input";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -47,17 +48,19 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const nextRaw = searchParams.get("next");
+      const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/dashboard";
       const res = await signIn("credentials", {
         redirect: false,
         email: formData.email,
         password: formData.password,
-        callbackUrl: "/dashboard",
+        callbackUrl: next,
       });
 
       if (res?.error) {
         setError("Invalid email or password");
       } else {
-        router.push("/dashboard");
+        router.push(next);
         router.refresh();
       }
     } catch {

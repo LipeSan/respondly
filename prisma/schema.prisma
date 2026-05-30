@@ -211,6 +211,8 @@ model Subscription {
   cancelAtPeriodEnd    Boolean  @default(false)
   cancelAt             DateTime?
   currentPeriodEnd     DateTime?
+  trialUsedAt          DateTime?
+  trialEndsAt          DateTime?
   stripeCustomerId     String?
   stripeSubscriptionId String?
 

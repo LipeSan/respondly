@@ -24,6 +24,7 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     "/configuration",
     "/google",
     "/subscription",
+    "/start-trial",
     "/account",
   ];
 

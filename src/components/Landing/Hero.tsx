@@ -1,10 +1,9 @@
 "use client";
-
-import React from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/Button";
+
 
 const HERO_BG =
   "https://static.prod-images.emergentagent.com/jobs/17dcd17d-45d3-4f6d-87e8-719aa8db2423/images/4ecbf194628f52651df8101b38e3e476a0be2be45e3e4ca4aad16754f0ad3632.png";
@@ -39,9 +38,12 @@ export default function Hero() {
           </p>
 
           <div className="mt-10 max-w-lg">
-            <Link href="/register" data-testid="hero-start">
-              <Button className="!w-auto !px-8 shadow-[0_0_30px_-6px_rgba(34,197,94,0.55)]">Start for Free</Button>
+            <Link href="/register?next=/start-trial" data-testid="hero-start">
+              <Button className="!w-auto !px-8 shadow-[0_0_30px_-6px_rgba(34,197,94,0.55)]">Start free trial</Button>
             </Link>
+            <p className="mt-3 text-xs text-zinc-500" data-testid="hero-trial-note">
+              30-day free trial. Card required. Cancel anytime.
+            </p>
           </div>
 
           <div className="mt-6 flex items-center gap-3 text-xs text-zinc-500">

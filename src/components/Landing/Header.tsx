@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/Button";
@@ -69,8 +69,8 @@ export default function Header({ showNav = true }: HeaderProps) {
               Log in
             </Button>
           </Link>
-          <Link href="/register" data-testid="header-cta-btn">
-            <Button className="!w-auto !py-2 shadow-[0_0_24px_-6px_rgba(34,197,94,0.6)]">Start for Free</Button>
+          <Link href="/register?next=/start-trial" data-testid="header-cta-btn">
+            <Button className="!w-auto !py-2 shadow-[0_0_24px_-6px_rgba(34,197,94,0.6)]">Start free trial</Button>
           </Link>
         </div>
       </div>

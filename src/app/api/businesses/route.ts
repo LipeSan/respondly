@@ -25,11 +25,26 @@ export async function GET() {
           cancelAtPeriodEnd: true,
           cancelAt: true,
           currentPeriodEnd: true,
+          trialUsedAt: true,
+          trialEndsAt: true,
         },
       },
     },
   });
-  return NextResponse.json({ businesses });
+  return NextResponse.json({
+    businesses: businesses.map((b) => ({
+      ...b,
+      subscription: b.subscription
+        ? {
+            ...b.subscription,
+            cancelAt: b.subscription.cancelAt ? b.subscription.cancelAt.toISOString() : null,
+            currentPeriodEnd: b.subscription.currentPeriodEnd ? b.subscription.currentPeriodEnd.toISOString() : null,
+            trialUsedAt: b.subscription.trialUsedAt ? b.subscription.trialUsedAt.toISOString() : null,
+            trialEndsAt: b.subscription.trialEndsAt ? b.subscription.trialEndsAt.toISOString() : null,
+          }
+        : null,
+    })),
+  });
 }
 
 export async function POST(req: Request) {

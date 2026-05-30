@@ -1,10 +1,9 @@
 "use client";
-
-import React from "react";
 import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/Button";
+
 
 const plans = [
   {
@@ -50,6 +49,9 @@ export default function Pricing() {
           </h2>
           <p className="mt-4 max-w-xl mx-auto text-zinc-400">
             No setup fees. Cancel anytime. Start with templates, upgrade to AI when you want it on autopilot.
+          </p>
+          <p className="mt-3 text-sm text-zinc-500">
+            Includes a 30-day free trial. Card required.
           </p>
         </div>
 
@@ -105,7 +107,7 @@ function PlanCard({ plan, delay }: { plan: Plan; delay: number }) {
       </ul>
 
       <div className="mt-auto pt-8" data-testid={`plan-${plan.id}-footer`}>
-        <Link href="/register" data-testid={`plan-${plan.id}-cta`}>
+        <Link href="/register?next=/start-trial" data-testid={`plan-${plan.id}-cta`}>
           <Button
             className={`${
               plan.highlight

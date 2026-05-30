@@ -362,6 +362,8 @@ export async function POST(req: Request) {
       cancelAtPeriodEnd && typeof rawCancelAt === "number" ? new Date(rawCancelAt * 1000) : null;
 
     const subCustomerId = normalizeStripeId((sub as { customer?: unknown }).customer);
+    const trialEndSec = (sub as unknown as { trial_end?: unknown }).trial_end ?? null;
+    const trialEndsAt = typeof trialEndSec === "number" ? new Date(trialEndSec * 1000) : null;
 
     // ✅ Update with the real status + IDs
     await prisma.subscription.upsert({
@@ -372,6 +374,8 @@ export async function POST(req: Request) {
         status: sub.status, // normalmente active/trialing
         cancelAtPeriodEnd,
         cancelAt,
+        trialUsedAt: sub.status === "trialing" && trialEndsAt ? new Date() : null,
+        trialEndsAt: trialEndsAt ?? null,
         stripeCustomerId: customerId ?? subCustomerId,
         stripeSubscriptionId: sub.id,
         currentPeriodEnd,
@@ -381,11 +385,19 @@ export async function POST(req: Request) {
         status: sub.status,
         cancelAtPeriodEnd,
         cancelAt,
+        ...(sub.status === "trialing" && trialEndsAt ? { trialEndsAt } : {}),
         stripeCustomerId: (customerId ?? subCustomerId) || undefined,
         stripeSubscriptionId: sub.id,
         currentPeriodEnd: currentPeriodEnd ?? undefined,
       },
     });
+
+    if (sub.status === "trialing" && trialEndsAt) {
+      await prisma.subscription.updateMany({
+        where: { businessId, trialUsedAt: null },
+        data: { trialUsedAt: new Date(), trialEndsAt },
+      });
+    }
 
     console.log("[stripe:webhook] saved subscription from checkout.session.completed", {
       businessId,
@@ -431,6 +443,8 @@ export async function POST(req: Request) {
       const rawCancelAt = (s as { cancel_at?: number | null }).cancel_at;
       const cancelAt =
         cancelAtPeriodEnd && typeof rawCancelAt === "number" ? new Date(rawCancelAt * 1000) : null;
+      const trialEndSec = (s as unknown as { trial_end?: unknown }).trial_end ?? null;
+      const trialEndsAt = typeof trialEndSec === "number" ? new Date(trialEndSec * 1000) : null;
 
       const plan: "starter" | "pro" = session.metadata?.plan === "pro" ? "pro" : "starter";
 
@@ -442,6 +456,8 @@ export async function POST(req: Request) {
           status: s.status,
           cancelAtPeriodEnd,
           cancelAt,
+          trialUsedAt: s.status === "trialing" && trialEndsAt ? new Date() : null,
+          trialEndsAt: trialEndsAt ?? null,
           stripeCustomerId: customerId ?? normalizeStripeId((s as { customer?: unknown }).customer),
           stripeSubscriptionId: subId,
           currentPeriodEnd,
@@ -451,11 +467,19 @@ export async function POST(req: Request) {
           status: s.status,
           cancelAtPeriodEnd,
           cancelAt,
+          ...(s.status === "trialing" && trialEndsAt ? { trialEndsAt } : {}),
           stripeCustomerId: customerId ?? undefined,
           stripeSubscriptionId: subId,
           currentPeriodEnd: currentPeriodEnd ?? undefined,
         },
       });
+
+      if (s.status === "trialing" && trialEndsAt) {
+        await prisma.subscription.updateMany({
+          where: { businessId, trialUsedAt: null },
+          data: { trialUsedAt: new Date(), trialEndsAt },
+        });
+      }
       console.log("[stripe:webhook] async_payment_succeeded updated subscription", {
         businessId,
         stripeSubscriptionId: subId,
@@ -821,6 +845,8 @@ export async function POST(req: Request) {
     const rawCancelAt = (sub as SubscriptionWithPeriodEnd).cancel_at;
     const cancelAt =
       cancelAtPeriodEnd && typeof rawCancelAt === "number" ? new Date(rawCancelAt * 1000) : null;
+    const trialEndSec = (sub as unknown as { trial_end?: unknown }).trial_end ?? null;
+    const trialEndsAt = typeof trialEndSec === "number" ? new Date(trialEndSec * 1000) : null;
 
     // plan from price
     const priceId = sub.items?.data?.[0]?.price?.id ?? null;
@@ -835,6 +861,7 @@ export async function POST(req: Request) {
         currentPeriodEnd,
         cancelAtPeriodEnd,
         cancelAt,
+        ...(status === "trialing" && trialEndsAt ? { trialEndsAt } : {}),
         ...(plan ? { plan } : {}),
       },
     });
@@ -846,6 +873,13 @@ export async function POST(req: Request) {
       status,
       plan,
     });
+
+    if (status === "trialing" && trialEndsAt) {
+      await prisma.subscription.updateMany({
+        where: { stripeCustomerId: customerId, trialUsedAt: null },
+        data: { trialUsedAt: new Date(), trialEndsAt },
+      });
+    }
 
     // fallback por customer metadata -> businessId
     if (updated.count === 0) {

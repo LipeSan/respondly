@@ -215,6 +215,8 @@ export async function POST(req: Request) {
         businessId: business.id,
         plan,
         status: "incomplete",
+        trialUsedAt: null,
+        trialEndsAt: null,
         stripeCustomerId: customerId,
         stripeSubscriptionId: null,
         currentPeriodEnd: null,
@@ -234,12 +236,20 @@ export async function POST(req: Request) {
 
     const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
 
+    const trialEligible = await prisma.subscription
+      .findUnique({
+        where: { businessId: business.id },
+        select: { trialUsedAt: true },
+      })
+      .then((s) => !s?.trialUsedAt);
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
         metadata: { businessId: business.id, plan },
+        ...(trialEligible ? { trial_period_days: 30 } : {}),
       },
       success_url: `${appUrl}/configuration?billing=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/configuration?billing=cancel`,
