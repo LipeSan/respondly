@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +12,32 @@ import { Input } from "@/components/Input";
 import { Text } from "@/components/Text";
 
 export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="max-w-md w-full space-y-6 p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
+            <div className="flex flex-col items-center gap-3">
+              <Image
+                src="/logo-header.png"
+                alt="Respondly - Google Review Automation"
+                width={350}
+                height={60}
+              />
+              <Text variant="h2" className="mt-4">
+                Create your account
+              </Text>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <RegisterInner />
+    </Suspense>
+  );
+}
+
+function RegisterInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [formData, setFormData] = useState({

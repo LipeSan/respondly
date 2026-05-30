@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -10,6 +10,32 @@ import { Text } from "@/components/Text";
 import { Input } from "@/components/Input";
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
+            <div className="flex flex-col items-center gap-3">
+              <Image
+                src="/logo-header.png"
+                alt="Respondly - Google Review Automation"
+                width={350}
+                height={50}
+              />
+              <Text variant="h2" className="mt-4">
+                Sign In
+              </Text>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
