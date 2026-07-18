@@ -159,6 +159,8 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const plan = body?.plan === "pro" ? "pro" : body?.plan === "starter" ? "starter" : null;
+    const inviteCodeRaw = typeof body?.inviteCode === "string" ? body.inviteCode : "";
+    const inviteCode = inviteCodeRaw.trim().toUpperCase();
 
     const priceId =
       plan === "starter"
@@ -236,25 +238,84 @@ export async function POST(req: Request) {
 
     const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
 
-    const trialEligible = await prisma.subscription
-      .findUnique({
-        where: { businessId: business.id },
-        select: { trialUsedAt: true },
-      })
-      .then((s) => !s?.trialUsedAt);
+    const subscriptionState = await prisma.subscription.findUnique({
+      where: { businessId: business.id },
+      select: { trialUsedAt: true },
+    });
+
+    let trialDays: number | null = null;
+    let appliedInviteCode: string | null = null;
+
+    if (inviteCode) {
+      const now = new Date();
+      const invite = await prisma.trialInvite.findUnique({
+        where: { code: inviteCode },
+        select: {
+          id: true,
+          days: true,
+          email: true,
+          usedAt: true,
+          reservedAt: true,
+          reservedByUserId: true,
+        },
+      });
+
+      if (!invite) {
+        return NextResponse.json({ error: "Invite code not found" }, { status: 400 });
+      }
+
+      if (invite.usedAt) {
+        return NextResponse.json({ error: "Invite code already used" }, { status: 400 });
+      }
+
+      const emailOk = !invite.email || invite.email.toLowerCase() === user.email.toLowerCase();
+      const reservationFresh =
+        invite.reservedAt ? now.getTime() - invite.reservedAt.getTime() < 1000 * 60 * 60 * 2 : false;
+      const reservationOk = !invite.reservedAt || !reservationFresh || invite.reservedByUserId === user.id;
+
+      if (!emailOk) {
+        return NextResponse.json({ error: "Invite code is not valid for this email" }, { status: 400 });
+      }
+
+      if (!reservationOk) {
+        return NextResponse.json({ error: "Invite code is currently reserved by another session" }, { status: 400 });
+      }
+
+      trialDays = invite.days;
+      appliedInviteCode = inviteCode;
+
+      await prisma.trialInvite.update({
+        where: { id: invite.id },
+        data: {
+          reservedAt: now,
+          reservedByUserId: user.id,
+          reservedByBusinessId: business.id,
+        },
+      });
+    } else if (!subscriptionState?.trialUsedAt) {
+      trialDays = 30;
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
-        metadata: { businessId: business.id, plan },
-        ...(trialEligible ? { trial_period_days: 30 } : {}),
+        metadata: {
+          businessId: business.id,
+          plan,
+          ...(appliedInviteCode ? { inviteCode: appliedInviteCode } : {}),
+        },
+        ...(trialDays ? { trial_period_days: trialDays } : {}),
       },
       success_url: `${appUrl}/configuration?billing=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/configuration?billing=cancel`,
       allow_promotion_codes: true,
-      metadata: { businessId: business.id, plan },
+      metadata: {
+        businessId: business.id,
+        plan,
+        ...(appliedInviteCode ? { inviteCode: appliedInviteCode } : {}),
+      },
     });
 
     console.log("[billing:checkout] Created checkout session", {

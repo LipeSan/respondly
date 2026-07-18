@@ -276,6 +276,28 @@ export async function POST(req: Request) {
     }
   }
 
+  async function consumeTrialInvite(args: { businessId: string; inviteCode: string }) {
+    const code = args.inviteCode.trim();
+    if (!code) return;
+    const now = new Date();
+    try {
+      const updated = await prisma.trialInvite.updateMany({
+        where: {
+          code,
+          usedAt: null,
+          OR: [{ reservedByBusinessId: null }, { reservedByBusinessId: args.businessId }],
+        },
+        data: { usedAt: now, usedByBusinessId: args.businessId },
+      });
+      if (updated.count > 0) {
+        console.log("[stripe:webhook] trial invite consumed", { businessId: args.businessId, code });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[stripe:webhook] consumeTrialInvite failed", { businessId: args.businessId, code, error: msg });
+    }
+  }
+
   // 1) Checkout completed (always save IDs; try to enrich with status and currentPeriodEnd)
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
@@ -407,6 +429,11 @@ export async function POST(req: Request) {
       currentPeriodEnd,
     });
 
+    const inviteCode = String(session.metadata?.inviteCode ?? full.metadata?.inviteCode ?? "").trim();
+    if (inviteCode) {
+      await consumeTrialInvite({ businessId, inviteCode });
+    }
+
     return NextResponse.json({ received: true });
   }
 
@@ -486,6 +513,11 @@ export async function POST(req: Request) {
         status: s.status,
         currentPeriodEnd,
       });
+    }
+
+    const inviteCode = String(session.metadata?.inviteCode ?? "").trim();
+    if (inviteCode) {
+      await consumeTrialInvite({ businessId, inviteCode });
     }
 
     return NextResponse.json({ received: true });
@@ -879,6 +911,14 @@ export async function POST(req: Request) {
         where: { stripeCustomerId: customerId, trialUsedAt: null },
         data: { trialUsedAt: new Date(), trialEndsAt },
       });
+    }
+
+    const inviteCode = String((sub as unknown as { metadata?: Record<string, unknown> }).metadata?.inviteCode ?? "").trim();
+    if (inviteCode) {
+      const businessId = await findBusinessIdFromStripeIds({ customerId, subscriptionId: sub.id });
+      if (businessId) {
+        await consumeTrialInvite({ businessId, inviteCode });
+      }
     }
 
     // fallback por customer metadata -> businessId

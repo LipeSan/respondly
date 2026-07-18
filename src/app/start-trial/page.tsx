@@ -55,12 +55,18 @@ function StartTrialInner() {
     return raw === "starter" ? "starter" : "pro";
   }, [searchParams]);
 
+  const initialInviteCode = useMemo(() => {
+    return String(searchParams.get("code") ?? "").trim();
+  }, [searchParams]);
+
   const [loading, setLoading] = useState(true);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [creatingBusiness, setCreatingBusiness] = useState(false);
   const [startingTrial, setStartingTrial] = useState(false);
+
+  const [inviteCode, setInviteCode] = useState(initialInviteCode);
 
   const [form, setForm] = useState({
     name: "",
@@ -102,6 +108,10 @@ function StartTrialInner() {
     load();
   }, []);
 
+  useEffect(() => {
+    setInviteCode(initialInviteCode);
+  }, [initialInviteCode]);
+
   async function startCheckout() {
     setStartingTrial(true);
     setError(null);
@@ -110,7 +120,7 @@ function StartTrialInner() {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, ...(inviteCode.trim() ? { inviteCode: inviteCode.trim().toUpperCase() } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
@@ -222,6 +232,16 @@ function StartTrialInner() {
                   />
                 </div>
 
+                <Input
+                  id="inviteCode"
+                  name="inviteCode"
+                  type="text"
+                  label="Invite code (optional)"
+                  placeholder="e.g. VIP90…"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                />
+
                 <div>
                   <Button type="submit" isLoading={creatingBusiness || startingTrial} disabled={creatingBusiness || startingTrial}>
                     Create business & start trial
@@ -243,6 +263,15 @@ function StartTrialInner() {
                 </div>
 
                 <div className="flex flex-col gap-3">
+                  <Input
+                    id="inviteCodeExisting"
+                    name="inviteCodeExisting"
+                    type="text"
+                    label="Invite code (optional)"
+                    placeholder="e.g. VIP90…"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                  />
                   <Button onClick={startCheckout} isLoading={startingTrial} disabled={startingTrial}>
                     {trialEligible ? "Start 30-day free trial" : "Continue to checkout"}
                   </Button>

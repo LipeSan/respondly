@@ -38,12 +38,13 @@ model User {
   createdAt  DateTime   @default(now())
   businesses Business[]
   passwordResetTokens PasswordResetToken[]
+  trialInvites TrialInvite[] @relation("TrialInviteReservedBy")
 }
 
 model PasswordResetToken {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   tokenHash String   @unique
   expiresAt DateTime
@@ -81,6 +82,8 @@ model Business {
   reviews              Review[]
   jobRuns              JobRun[]
   paymentHistory       PaymentHistory[]
+  trialInvites         TrialInvite[] @relation("TrialInviteReservedByBusiness")
+  usedTrialInvites     TrialInvite[] @relation("TrialInviteUsedByBusiness")
   createdAt            DateTime          @default(now())
 }
 
@@ -218,6 +221,29 @@ model Subscription {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model TrialInvite {
+  id                 String   @id @default(cuid())
+  code               String   @unique
+  days               Int
+  email              String?
+
+  reservedAt         DateTime?
+  reservedByUserId   String?
+  reservedByBusinessId String?
+  reservedByUser     User?     @relation("TrialInviteReservedBy", fields: [reservedByUserId], references: [id])
+  reservedByBusiness Business? @relation("TrialInviteReservedByBusiness", fields: [reservedByBusinessId], references: [id])
+
+  usedAt             DateTime?
+  usedByBusinessId   String?
+  usedByBusiness     Business? @relation("TrialInviteUsedByBusiness", fields: [usedByBusinessId], references: [id])
+
+  createdAt          DateTime @default(now())
+
+  @@index([email])
+  @@index([usedAt])
+  @@index([reservedAt])
 }
 
 model PaymentHistory {
