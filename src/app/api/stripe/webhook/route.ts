@@ -281,17 +281,33 @@ export async function POST(req: Request) {
     if (!code) return;
     const now = new Date();
     try {
-      const updated = await prisma.trialInvite.updateMany({
-        where: {
-          code,
-          usedAt: null,
-          OR: [{ reservedByBusinessId: null }, { reservedByBusinessId: args.businessId }],
-        },
-        data: { usedAt: now, usedByBusinessId: args.businessId },
+      const invite = await prisma.trialInvite.findUnique({
+        where: { code },
+        select: { id: true },
       });
-      if (updated.count > 0) {
-        console.log("[stripe:webhook] trial invite consumed", { businessId: args.businessId, code });
-      }
+      if (!invite) return;
+
+      await prisma.$transaction([
+        prisma.trialInvite.update({
+          where: { id: invite.id },
+          data: { usedAt: now, usedByBusinessId: args.businessId },
+        }),
+        prisma.trialInviteRedemption.upsert({
+          where: {
+            inviteId_businessId: {
+              inviteId: invite.id,
+              businessId: args.businessId,
+            },
+          },
+          update: {},
+          create: {
+            inviteId: invite.id,
+            businessId: args.businessId,
+          },
+        }),
+      ]);
+
+      console.log("[stripe:webhook] trial invite usage recorded", { businessId: args.businessId, code });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[stripe:webhook] consumeTrialInvite failed", { businessId: args.businessId, code, error: msg });

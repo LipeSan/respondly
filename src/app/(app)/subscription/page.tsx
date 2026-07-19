@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { Modal } from "@/components/Modal";
 import { Text } from "@/components/Text";
 import { useToast } from "@/components/Toast";
 import { BillingPlans } from "@/components/BillingPlans";
@@ -50,6 +52,7 @@ function formatMoney(amount: number | null, currency: string | null) {
 
 export default function SubscriptionPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [business, setBusiness] = useState<Business | null>(null);
@@ -58,6 +61,15 @@ export default function SubscriptionPage() {
     const [canceling, setCanceling] = useState(false);
     const [subscribing, setSubscribing] = useState<null | "starter" | "pro">(null);
     const [showPlans, setShowPlans] = useState(false);
+    const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+    const [inviteCode, setInviteCode] = useState("");
+
+    const buildSubscriptionPath = () => {
+        const params = new URLSearchParams();
+        if (inviteCode.trim()) params.set("code", inviteCode.trim().toUpperCase());
+        const query = params.toString();
+        return query ? `/subscription?${query}` : "/subscription";
+    };
 
     async function load() {
         setLoading(true);
@@ -69,7 +81,7 @@ export default function SubscriptionPage() {
             ]);
 
             if (res.status === 401 || historyRes.status === 401) {
-                router.push("/login");
+                router.push(`/login?next=${encodeURIComponent(buildSubscriptionPath())}`);
                 router.refresh();
                 return;
             }
@@ -95,16 +107,28 @@ export default function SubscriptionPage() {
         load();
     }, []);
 
+    useEffect(() => {
+        setInviteCode(String(searchParams.get("code") ?? "").trim().toUpperCase());
+    }, [searchParams]);
+
     async function subscribe(plan: "starter" | "pro") {
         try {
             setSubscribing(plan);
             const res = await fetch("/api/billing/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ plan }),
+                body: JSON.stringify({
+                    plan,
+                    ...(inviteCode.trim() ? { inviteCode: inviteCode.trim().toUpperCase() } : {}),
+                }),
             });
 
             const data: { url?: string; error?: string } = await res.json().catch(() => ({} as { url?: string; error?: string }));
+            if (res.status === 401) {
+                router.push(`/login?next=${encodeURIComponent(buildSubscriptionPath())}`);
+                router.refresh();
+                return;
+            }
             if (!res.ok) throw new Error(data?.error || "Failed to start checkout");
 
             if (!data?.url) throw new Error("Stripe checkout URL not returned");
@@ -131,6 +155,7 @@ export default function SubscriptionPage() {
             const res = await fetch("/api/billing/cancel", { method: "POST" });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data?.error || "Failed to cancel subscription");
+            setConfirmCancelOpen(false);
             showToast({
                 type: "success",
                 message: "Your subscription will be canceled at the end of the current period.",
@@ -493,7 +518,7 @@ export default function SubscriptionPage() {
                                 variant="outline"
                                 className="!w-auto"
                                 disabled={canceling || !subscription || isCancelScheduled || statusRaw === "canceled"}
-                                onClick={cancelSubscription}
+                                onClick={() => setConfirmCancelOpen(true)}
                             >
                                 {canceling ? "Canceling..." : isCancelScheduled ? "Cancellation scheduled" : "Cancel subscription"}
                             </Button>
@@ -516,6 +541,20 @@ export default function SubscriptionPage() {
                             <Text variant="body" className="mt-2 text-sm text-gray-600">
                                 Select a new plan below. You will be redirected to a secure Stripe checkout.
                             </Text>
+                            <div className="mt-4 max-w-md">
+                                <Input
+                                    id="subscriptionInviteCode"
+                                    name="subscriptionInviteCode"
+                                    type="text"
+                                    label="Trial invite code (optional)"
+                                    placeholder="e.g. VIP90"
+                                    value={inviteCode}
+                                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                />
+                                <Text variant="body" className="mt-2 text-xs text-gray-500">
+                                    Use a VIP invite here for extended trial days. Stripe promotion codes stay on the Stripe checkout page.
+                                </Text>
+                            </div>
                             <BillingPlans
                                 subscribing={subscribing}
                                 onSubscribe={subscribe}
@@ -524,6 +563,49 @@ export default function SubscriptionPage() {
                         </div>
                     </div>
                 )}
+
+                <Modal
+                    open={confirmCancelOpen}
+                    onClose={() => {
+                        if (!canceling) setConfirmCancelOpen(false);
+                    }}
+                    title="Confirm cancellation"
+                    footer={
+                        <div className="flex justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="!w-auto"
+                                onClick={() => setConfirmCancelOpen(false)}
+                                disabled={canceling}
+                            >
+                                Keep subscription
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="primary"
+                                className="!w-auto"
+                                onClick={cancelSubscription}
+                                isLoading={canceling}
+                                disabled={canceling}
+                            >
+                                Confirm cancellation
+                            </Button>
+                        </div>
+                    }
+                >
+                    <Text variant="body" className="text-sm text-gray-700">
+                        Your subscription will remain active until the end of the current billing period.
+                    </Text>
+                    {cancelAtDate ? (
+                        <Text variant="body" className="mt-3 text-sm font-semibold text-gray-900">
+                            Access ends on {cancelAtDate.toLocaleDateString()}.
+                        </Text>
+                    ) : null}
+                    <Text variant="body" className="mt-3 text-sm text-gray-600">
+                        After confirming, the cancellation will be scheduled in Stripe and your current plan will not renew automatically.
+                    </Text>
+                </Modal>
             </main>
         </div>
     );

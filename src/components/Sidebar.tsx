@@ -12,6 +12,10 @@ const mainNavItems = [
   { name: "Templates", href: "/templates" },
 ];
 
+const adminNavItems = [
+  { name: "Admin", href: "/admin" },
+];
+
 function NavIcon({ name, className }: { name: string; className: string }) {
   if (name === "Dashboard") {
     return (
@@ -54,6 +58,14 @@ function NavIcon({ name, className }: { name: string; className: string }) {
       </svg>
     );
   }
+  if (name === "Admin") {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3l7 4v5c0 5-3 7.5-7 9-4-1.5-7-4-7-9V7l7-4Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.5 12.5 11 14l3.5-4" />
+      </svg>
+    );
+  }
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6l4 2" />
@@ -64,6 +76,9 @@ function NavIcon({ name, className }: { name: string; className: string }) {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const isAdminSection = pathname?.startsWith("/admin");
+  const navItems = isAdminSection ? adminNavItems : mainNavItems;
+  const menuLabel = isAdminSection ? "Admin" : "Menu";
 
   return (
     <aside className="hidden md:block w-64 shrink-0">
@@ -73,11 +88,11 @@ export function Sidebar() {
             variant="body"
             className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 pb-3"
           >
-            Menu
+            {menuLabel}
           </Text>
 
           <nav className="flex flex-col gap-1">
-            {mainNavItems.map((item) => {
+            {navItems.map((item) => {
               const isActive =
                 pathname === item.href || pathname?.startsWith(`${item.href}/`);
 

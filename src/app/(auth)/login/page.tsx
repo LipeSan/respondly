@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/Button";
+import { InlineNotification } from "@/components/InlineNotification";
 import { Text } from "@/components/Text";
 import { Input } from "@/components/Input";
 
@@ -48,6 +49,18 @@ function LoginInner() {
     password: "",
   });
   const [loading, setLoading] = useState(false);
+  const nextRaw = searchParams.get("next");
+  const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/dashboard";
+  const code = String(searchParams.get("code") ?? "").trim();
+  const plan = String(searchParams.get("plan") ?? "").trim();
+  const nextUrl = new URL(next, "http://localhost");
+  if (code && nextUrl.pathname === "/start-trial" && !nextUrl.searchParams.get("code")) {
+    nextUrl.searchParams.set("code", code.toUpperCase());
+  }
+  if (plan && nextUrl.pathname === "/start-trial" && !nextUrl.searchParams.get("plan")) {
+    nextUrl.searchParams.set("plan", plan);
+  }
+  const nextWithParams = `${nextUrl.pathname}${nextUrl.search}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,19 +87,17 @@ function LoginInner() {
     setLoading(true);
 
     try {
-      const nextRaw = searchParams.get("next");
-      const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/dashboard";
       const res = await signIn("credentials", {
         redirect: false,
         email: formData.email,
         password: formData.password,
-        callbackUrl: next,
+        callbackUrl: nextWithParams,
       });
 
       if (res?.error) {
         setError("Invalid email or password");
       } else {
-        router.push(next);
+        router.push(nextWithParams);
         router.refresh();
       }
     } catch {
@@ -152,11 +163,7 @@ function LoginInner() {
             </div>
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg border border-red-100">
-              {error}
-            </div>
-          )}
+          {error ? <InlineNotification tone="error" centered>{error}</InlineNotification> : null}
 
           <Button type="submit" isLoading={loading}>
             Sign in
@@ -164,7 +171,7 @@ function LoginInner() {
 
           <div className="text-center text-sm mt-4">
             <Text variant="body" as="span">{`Don't have an account? `}</Text>
-            <Text variant="link" as={Link} href="/register">
+            <Text variant="link" as={Link} href={`/register?next=${encodeURIComponent(nextWithParams)}`}>
               Sign up
             </Text>
           </div>

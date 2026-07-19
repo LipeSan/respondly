@@ -15,6 +15,7 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
   }
 
   const protectedPrefixes = [
+    "/admin",
     "/dashboard",
     "/onboarding",
     "/reviews",

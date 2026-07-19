@@ -30,15 +30,24 @@ enum ResponseMethod {
   manual
 }
 
+enum AppRole {
+  user
+  support
+  admin
+}
+
 model User {
   id         String     @id @default(cuid())
   name       String?
   email      String     @unique
   password   String?
+  role       AppRole    @default(user)
   createdAt  DateTime   @default(now())
   businesses Business[]
   passwordResetTokens PasswordResetToken[]
   trialInvites TrialInvite[] @relation("TrialInviteReservedBy")
+  adminAuditLogs AdminAuditLog[] @relation("AdminAuditActor")
+  targetedAdminAuditLogs AdminAuditLog[] @relation("AdminAuditTargetUser")
 }
 
 model PasswordResetToken {
@@ -84,6 +93,8 @@ model Business {
   paymentHistory       PaymentHistory[]
   trialInvites         TrialInvite[] @relation("TrialInviteReservedByBusiness")
   usedTrialInvites     TrialInvite[] @relation("TrialInviteUsedByBusiness")
+  trialInviteRedemptions TrialInviteRedemption[]
+  adminAuditLogs       AdminAuditLog[] @relation("AdminAuditTargetBusiness")
   createdAt            DateTime          @default(now())
 }
 
@@ -238,12 +249,46 @@ model TrialInvite {
   usedAt             DateTime?
   usedByBusinessId   String?
   usedByBusiness     Business? @relation("TrialInviteUsedByBusiness", fields: [usedByBusinessId], references: [id])
+  redemptions        TrialInviteRedemption[]
 
   createdAt          DateTime @default(now())
 
   @@index([email])
   @@index([usedAt])
   @@index([reservedAt])
+}
+
+model TrialInviteRedemption {
+  id         String      @id @default(cuid())
+  inviteId   String
+  businessId String
+  invite     TrialInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime    @default(now())
+
+  @@unique([inviteId, businessId])
+  @@index([inviteId, createdAt])
+  @@index([businessId, createdAt])
+}
+
+model AdminAuditLog {
+  id               String   @id @default(cuid())
+  actorUserId      String
+  actorUser        User     @relation("AdminAuditActor", fields: [actorUserId], references: [id])
+  action           String
+
+  targetUserId     String?
+  targetUser       User?    @relation("AdminAuditTargetUser", fields: [targetUserId], references: [id])
+  targetBusinessId String?
+  targetBusiness   Business? @relation("AdminAuditTargetBusiness", fields: [targetBusinessId], references: [id])
+
+  metadata         Json?
+  createdAt        DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([targetBusinessId, createdAt])
+  @@index([action, createdAt])
 }
 
 model PaymentHistory {

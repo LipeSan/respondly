@@ -6,6 +6,38 @@ import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+async function recordTrialInviteRedemption(args: { businessId: string; inviteCode: string }) {
+  const code = args.inviteCode.trim().toUpperCase();
+  if (!code) return;
+
+  const invite = await prisma.trialInvite.findUnique({
+    where: { code },
+    select: { id: true },
+  });
+  if (!invite) return;
+
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.trialInvite.update({
+      where: { id: invite.id },
+      data: { usedAt: now, usedByBusinessId: args.businessId },
+    }),
+    prisma.trialInviteRedemption.upsert({
+      where: {
+        inviteId_businessId: {
+          inviteId: invite.id,
+          businessId: args.businessId,
+        },
+      },
+      update: {},
+      create: {
+        inviteId: invite.id,
+        businessId: args.businessId,
+      },
+    }),
+  ]);
+}
+
 async function getCurrentPeriodEndFromSubscription(
   sub: unknown
 ): Promise<Date | null> {
@@ -42,6 +74,13 @@ export async function GET(req: Request) {
   if (!sessionId) return NextResponse.json({ error: "session_id is required" }, { status: 400 });
 
   try {
+    const existingSubscription = await prisma.subscription.findUnique({
+      where: { businessId: business.id },
+      select: {
+        id: true,
+      },
+    });
+
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ["subscription"],
     });
@@ -68,21 +107,25 @@ export async function GET(req: Request) {
     }
 
     if (!subId) {
-      await prisma.subscription.upsert({
-        where: { businessId: business.id },
-        create: {
-          businessId: business.id,
-          plan,
-          status: "incomplete",
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: null,
-          currentPeriodEnd: null,
-        },
-        update: {
-          plan,
-          stripeCustomerId: customerId ?? undefined,
-        },
-      });
+      if (!existingSubscription) {
+        await prisma.subscription.create({
+          data: {
+            businessId: business.id,
+            plan,
+            status: "incomplete",
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: null,
+            currentPeriodEnd: null,
+          },
+        });
+      } else if (customerId) {
+        await prisma.subscription.update({
+          where: { businessId: business.id },
+          data: {
+            stripeCustomerId: customerId,
+          },
+        });
+      }
       return NextResponse.json({ ok: false, reason: "subscription_not_ready" });
     }
 
@@ -125,6 +168,14 @@ export async function GET(req: Request) {
       currentPeriodEnd,
       cancelAtPeriodEnd,
     });
+
+    const inviteCode = String(session.metadata?.inviteCode ?? "").trim();
+    if (inviteCode) {
+      await recordTrialInviteRedemption({
+        businessId: business.id,
+        inviteCode,
+      });
+    }
 
     return NextResponse.json({
       ok: true,
@@ -176,7 +227,10 @@ export async function POST(req: Request) {
 
     const existing = await prisma.subscription.findUnique({
       where: { businessId: business.id },
-      select: { stripeCustomerId: true },
+      select: {
+        id: true,
+        stripeCustomerId: true,
+      },
     });
 
     let customerId = existing?.stripeCustomerId ?? null;
@@ -211,52 +265,72 @@ export async function POST(req: Request) {
       }
     }
 
-    await prisma.subscription.upsert({
-      where: { businessId: business.id },
-      create: {
-        businessId: business.id,
-        plan,
-        status: "incomplete",
-        trialUsedAt: null,
-        trialEndsAt: null,
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: null,
-        currentPeriodEnd: null,
-      },
-      update: {
-        plan,
-        status: "incomplete",
-        stripeCustomerId: customerId,
-      },
-    });
+    if (!existing?.id) {
+      await prisma.subscription.create({
+        data: {
+          businessId: business.id,
+          plan,
+          status: "incomplete",
+          trialUsedAt: null,
+          trialEndsAt: null,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: null,
+          currentPeriodEnd: null,
+        },
+      });
+    } else if (customerId && customerId !== existing.stripeCustomerId) {
+      await prisma.subscription.update({
+        where: { businessId: business.id },
+        data: {
+          stripeCustomerId: customerId,
+        },
+      });
+    }
 
-    console.log("[billing:checkout] Upserted local subscription before checkout", {
+    console.log("[billing:checkout] Prepared local subscription before checkout", {
       businessId: business.id,
       plan,
       customerId,
+      existingSubscription: Boolean(existing?.id),
     });
 
     const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
 
     const subscriptionState = await prisma.subscription.findUnique({
       where: { businessId: business.id },
-      select: { trialUsedAt: true },
+      select: {
+        status: true,
+        trialUsedAt: true,
+        trialEndsAt: true,
+        stripeSubscriptionId: true,
+        currentPeriodEnd: true,
+      },
     });
 
     let trialDays: number | null = null;
     let appliedInviteCode: string | null = null;
+    const hasStartedPaidLifecycle = Boolean(
+      subscriptionState?.trialUsedAt ||
+      subscriptionState?.trialEndsAt ||
+      subscriptionState?.stripeSubscriptionId ||
+      subscriptionState?.currentPeriodEnd ||
+      (subscriptionState?.status &&
+        !["incomplete", "incomplete_expired"].includes(subscriptionState.status))
+    );
 
     if (inviteCode) {
-      const now = new Date();
       const invite = await prisma.trialInvite.findUnique({
         where: { code: inviteCode },
         select: {
           id: true,
           days: true,
           email: true,
-          usedAt: true,
-          reservedAt: true,
-          reservedByUserId: true,
+          usedByBusinessId: true,
+          redemptions: {
+            where: { businessId: business.id },
+            select: { id: true },
+            take: 1,
+          },
         },
       });
 
@@ -264,35 +338,22 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invite code not found" }, { status: 400 });
       }
 
-      if (invite.usedAt) {
-        return NextResponse.json({ error: "Invite code already used" }, { status: 400 });
-      }
-
       const emailOk = !invite.email || invite.email.toLowerCase() === user.email.toLowerCase();
-      const reservationFresh =
-        invite.reservedAt ? now.getTime() - invite.reservedAt.getTime() < 1000 * 60 * 60 * 2 : false;
-      const reservationOk = !invite.reservedAt || !reservationFresh || invite.reservedByUserId === user.id;
 
       if (!emailOk) {
         return NextResponse.json({ error: "Invite code is not valid for this email" }, { status: 400 });
       }
 
-      if (!reservationOk) {
-        return NextResponse.json({ error: "Invite code is currently reserved by another session" }, { status: 400 });
+      if (invite.redemptions.length > 0 || invite.usedByBusinessId === business.id) {
+        return NextResponse.json(
+          { error: "This business has already used this invite code" },
+          { status: 400 }
+        );
       }
 
       trialDays = invite.days;
       appliedInviteCode = inviteCode;
-
-      await prisma.trialInvite.update({
-        where: { id: invite.id },
-        data: {
-          reservedAt: now,
-          reservedByUserId: user.id,
-          reservedByBusinessId: business.id,
-        },
-      });
-    } else if (!subscriptionState?.trialUsedAt) {
+    } else if (!hasStartedPaidLifecycle) {
       trialDays = 30;
     }
 

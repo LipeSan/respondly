@@ -55,6 +55,7 @@ export default function ConfigurationPage() {
   const [aiSaving, setAiSaving] = useState(false);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState("");
   const [autoResponderEnabled, setAutoResponderEnabled] = useState<boolean | null>(
     null
   );
@@ -85,6 +86,13 @@ Rules:
     : subscription?.currentPeriodEnd
       ? new Date(subscription.currentPeriodEnd)
       : null;
+
+  const buildConfigurationPath = () => {
+    const params = new URLSearchParams();
+    if (inviteCode.trim()) params.set("code", inviteCode.trim().toUpperCase());
+    const query = params.toString();
+    return query ? `/configuration?${query}` : "/configuration";
+  };
 
   let statusLabel = "No active subscription";
   let badgeClasses = "bg-gray-100 border-gray-200 text-gray-700";
@@ -124,7 +132,7 @@ Rules:
     try {
       const res = await fetch("/api/businesses", { cache: "no-store" });
       if (res.status === 401) {
-        router.push("/login");
+        router.push(`/login?next=${encodeURIComponent(buildConfigurationPath())}`);
         router.refresh();
         return;
       }
@@ -145,12 +153,20 @@ Rules:
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({
+          plan,
+          ...(inviteCode.trim() ? { inviteCode: inviteCode.trim().toUpperCase() } : {}),
+        }),
       });
 
       const data: { url?: string; error?: string } = await res
         .json()
         .catch(() => ({} as { url?: string; error?: string }));
+      if (res.status === 401) {
+        router.push(`/login?next=${encodeURIComponent(buildConfigurationPath())}`);
+        router.refresh();
+        return;
+      }
       if (!res.ok) throw new Error(data?.error || "Failed to start checkout");
 
       if (!data?.url) throw new Error("Stripe checkout URL was not returned");
@@ -230,6 +246,10 @@ Rules:
       loadAiSettings();
     }
   }, [business?.id]);
+
+  useEffect(() => {
+    setInviteCode(String(searchParams.get("code") ?? "").trim().toUpperCase());
+  }, [searchParams]);
 
   useEffect(() => {
     const billing = searchParams.get("billing");
@@ -620,6 +640,21 @@ Rules:
               <Text variant="body" className="text-sm text-gray-600 mt-2">
                 Choose a plan to enable automations and advanced features (AI in Pro).
               </Text>
+
+              <div className="mt-4 max-w-md">
+                <Input
+                  id="configurationInviteCode"
+                  name="configurationInviteCode"
+                  type="text"
+                  label="Trial invite code (optional)"
+                  placeholder="e.g. VIP90"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                />
+                <Text variant="body" className="mt-2 text-xs text-gray-500">
+                  Use a VIP invite here for extended trial days. Stripe promotion codes stay on the Stripe checkout page.
+                </Text>
+              </div>
 
               <BillingPlans subscribing={subscribing} onSubscribe={subscribe} />
             </div>

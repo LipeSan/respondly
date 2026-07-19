@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { InlineNotification } from "@/components/InlineNotification";
 import { Text } from "@/components/Text";
 
 export default function ResetPasswordPage() {
@@ -79,9 +80,9 @@ export default function ResetPasswordPage() {
 
         {done ? (
           <div className="space-y-4">
-            <div className="text-green-700 text-sm text-center bg-green-50 p-3 rounded-lg border border-green-100">
+            <InlineNotification tone="success" centered>
               Your password has been reset. You can now sign in.
-            </div>
+            </InlineNotification>
             <Button
               type="button"
               onClick={() => {

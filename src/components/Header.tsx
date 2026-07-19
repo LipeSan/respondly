@@ -11,6 +11,7 @@ interface HeaderProps {
   businessName?: string;
   userName?: string;
   userEmail?: string;
+  isAdmin?: boolean;
 }
 
 function NavIcon({ name, className }: { name: string; className: string }) {
@@ -73,26 +74,30 @@ function NavIcon({ name, className }: { name: string; className: string }) {
   );
 }
 
-export function Header({ businessName, userName, userEmail }: HeaderProps) {
+export function Header({ businessName, userName, userEmail, isAdmin = false }: HeaderProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const pathname = usePathname();
+  const isAdminSection = pathname?.startsWith("/admin");
 
   const hasBusiness = Boolean(businessName);
+  const canOpenMobileNav = hasBusiness || isAdminSection;
   const displayName =
     businessName ||
     (userName ? userName.trim() : "") ||
     (userEmail ? userEmail.split("@")[0] : "") ||
     "";
 
-  const navItems = [
-    { name: "Dashboard", href: "/dashboard" },
-    { name: "Reviews", href: "/reviews" },
-    { name: "Rules", href: "/rules" },
-    { name: "Templates", href: "/templates" },
-    { name: "Google", href: "/google" },
-    { name: "Subscription", href: "/subscription" },
-  ];
+  const navItems = isAdminSection
+    ? [{ name: "Admin", href: "/admin" }]
+    : [
+        { name: "Dashboard", href: "/dashboard" },
+        { name: "Reviews", href: "/reviews" },
+        { name: "Rules", href: "/rules" },
+        { name: "Templates", href: "/templates" },
+        { name: "Google", href: "/google" },
+        { name: "Subscription", href: "/subscription" },
+      ];
 
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -114,7 +119,7 @@ export function Header({ businessName, userName, userEmail }: HeaderProps) {
 
           {(displayName || userEmail) && (
             <div className="relative flex items-center gap-4">
-              {hasBusiness && (
+              {canOpenMobileNav && (
                 <button
                   type="button"
                   onClick={() => {
@@ -157,7 +162,7 @@ export function Header({ businessName, userName, userEmail }: HeaderProps) {
                 />
               )}
 
-              {isMobileNavOpen && hasBusiness && (
+              {isMobileNavOpen && canOpenMobileNav && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 md:hidden">
                   <div className="px-4 py-2">
                     <Text variant="body" className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -220,6 +225,17 @@ export function Header({ businessName, userName, userEmail }: HeaderProps) {
                       Account settings
                     </Text>
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="block px-4 py-2 hover:bg-gray-50 transition-colors"
+                    >
+                      <Text variant="body" className="text-sm text-gray-700">
+                        Admin panel
+                      </Text>
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => signOut()}

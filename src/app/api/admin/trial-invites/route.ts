@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getCurrentAdminUser, recordAdminAudit } from "@/lib/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,8 @@ function generateCode() {
 }
 
 export async function GET(req: Request) {
-  if (!isAuthorized(req)) return unauthorized();
+  const adminContext = await getCurrentAdminUser();
+  if (!adminContext && !isAuthorized(req)) return unauthorized();
 
   const url = new URL(req.url);
   const takeRaw = Number(url.searchParams.get("take") ?? 50);
@@ -37,11 +39,19 @@ export async function GET(req: Request) {
       code: true,
       days: true,
       email: true,
-      reservedAt: true,
-      reservedByUserId: true,
-      reservedByBusinessId: true,
       usedAt: true,
       usedByBusinessId: true,
+      usedByBusiness: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      _count: {
+        select: {
+          redemptions: true,
+        },
+      },
       createdAt: true,
     },
   });
@@ -50,7 +60,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!isAuthorized(req)) return unauthorized();
+  const adminContext = await getCurrentAdminUser();
+  if (!adminContext && !isAuthorized(req)) return unauthorized();
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const daysRaw = typeof body?.days === "number" ? body.days : Number(body?.days ?? NaN);
@@ -85,11 +96,27 @@ export async function POST(req: Request) {
           code: true,
           days: true,
           email: true,
-          reservedAt: true,
           usedAt: true,
+          _count: {
+            select: {
+              redemptions: true,
+            },
+          },
           createdAt: true,
         },
       });
+      if (adminContext) {
+        await recordAdminAudit({
+          actorUserId: adminContext.user.id,
+          action: "trial_invite_created",
+          metadata: {
+            code: invite.code,
+            days: invite.days,
+            email: invite.email,
+            accessLevel: adminContext.accessLevel,
+          },
+        });
+      }
       return NextResponse.json({ invite });
     } catch (e) {
       lastError = e;
@@ -108,3 +135,44 @@ export async function POST(req: Request) {
   return NextResponse.json({ error: msg }, { status: 500 });
 }
 
+export async function DELETE(req: Request) {
+  const adminContext = await getCurrentAdminUser();
+  if (!adminContext) return unauthorized();
+
+  const url = new URL(req.url);
+  const id = String(url.searchParams.get("id") ?? "").trim();
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const invite = await prisma.trialInvite.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      code: true,
+      days: true,
+      email: true,
+      usedByBusinessId: true,
+    },
+  });
+
+  if (!invite) {
+    return NextResponse.json({ error: "Invite not found" }, { status: 404 });
+  }
+
+  await prisma.trialInvite.delete({ where: { id } });
+
+  await recordAdminAudit({
+    actorUserId: adminContext.user.id,
+    action: "trial_invite_deleted",
+    targetBusinessId: invite.usedByBusinessId ?? null,
+    metadata: {
+      code: invite.code,
+      days: invite.days,
+      email: invite.email,
+      accessLevel: adminContext.accessLevel,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
+}

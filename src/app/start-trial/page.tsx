@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { InlineNotification } from "@/components/InlineNotification";
 import { Text } from "@/components/Text";
 
 type Subscription = {
@@ -74,9 +75,18 @@ function StartTrialInner() {
     email: "",
   });
 
+  const buildStartTrialPath = (code = inviteCode) => {
+    const params = new URLSearchParams();
+    if (plan) params.set("plan", plan);
+    if (code.trim()) params.set("code", code.trim().toUpperCase());
+    const query = params.toString();
+    return query ? `/start-trial?${query}` : "/start-trial";
+  };
+
   const business = businesses[0] ?? null;
   const subscription = business?.subscription ?? null;
   const trialEligible = !subscription?.trialUsedAt;
+  const hasInviteCode = inviteCode.trim().length > 0;
   const hasActive =
     subscription?.status === "active" ||
     subscription?.status === "trialing" ||
@@ -89,7 +99,7 @@ function StartTrialInner() {
     try {
       const res = await fetch("/api/businesses", { cache: "no-store" });
       if (res.status === 401) {
-        router.push("/login?next=/start-trial");
+        router.push(`/login?next=${encodeURIComponent(buildStartTrialPath())}`);
         router.refresh();
         return;
       }
@@ -124,7 +134,7 @@ function StartTrialInner() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
-        router.push("/login?next=/start-trial");
+        router.push(`/login?next=${encodeURIComponent(buildStartTrialPath())}`);
         router.refresh();
         return;
       }
@@ -156,7 +166,7 @@ function StartTrialInner() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
-        router.push("/login?next=/start-trial");
+        router.push(`/login?next=${encodeURIComponent(buildStartTrialPath())}`);
         router.refresh();
         return;
       }
@@ -186,16 +196,8 @@ function StartTrialInner() {
             </Text>
           </div>
 
-          {error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm text-center">
-              {error}
-            </div>
-          ) : null}
-          {notice ? (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-800 text-sm text-center">
-              {notice}
-            </div>
-          ) : null}
+          {error ? <InlineNotification tone="error" centered>{error}</InlineNotification> : null}
+          {notice ? <InlineNotification tone="info" centered>{notice}</InlineNotification> : null}
 
           <div className="bg-white py-8 px-4 shadow-xl rounded-2xl sm:px-10 border border-gray-100">
             {!business ? (
@@ -253,7 +255,13 @@ function StartTrialInner() {
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
                   <Text variant="subtitle" className="font-bold text-gray-900">{business.name}</Text>
                   <Text variant="body" className="mt-1 text-sm text-gray-600">
-                    {hasActive ? "You already have an active subscription." : trialEligible ? "You’re eligible for a free trial." : "Trial already used for this business."}
+                    {hasActive
+                      ? "You already have an active subscription."
+                      : trialEligible
+                        ? "You’re eligible for a free trial."
+                        : hasInviteCode
+                          ? "This invite code can still apply an extended trial."
+                          : "Trial already used for this business."}
                   </Text>
                   {subscription?.trialEndsAt ? (
                     <Text variant="body" className="mt-2 text-xs text-gray-500">
@@ -273,7 +281,7 @@ function StartTrialInner() {
                     onChange={(e) => setInviteCode(e.target.value)}
                   />
                   <Button onClick={startCheckout} isLoading={startingTrial} disabled={startingTrial}>
-                    {trialEligible ? "Start 30-day free trial" : "Continue to checkout"}
+                    {trialEligible ? "Start 30-day free trial" : hasInviteCode ? "Continue with invite code" : "Continue to checkout"}
                   </Button>
                   <Button variant="outline" onClick={() => router.push("/subscription")} className="!w-auto">
                     Manage subscription

@@ -8,6 +8,7 @@ import Image from "next/image";
 import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/Button";
+import { InlineNotification } from "@/components/InlineNotification";
 import { Input } from "@/components/Input";
 import { Text } from "@/components/Text";
 
@@ -52,6 +53,18 @@ function RegisterInner() {
     password: "",
   });
   const [loading, setLoading] = useState(false);
+  const nextRaw = searchParams.get("next");
+  const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/start-trial";
+  const code = String(searchParams.get("code") ?? "").trim();
+  const plan = String(searchParams.get("plan") ?? "").trim();
+  const nextUrl = new URL(next, "http://localhost");
+  if (code && nextUrl.pathname === "/start-trial" && !nextUrl.searchParams.get("code")) {
+    nextUrl.searchParams.set("code", code.toUpperCase());
+  }
+  if (plan && nextUrl.pathname === "/start-trial" && !nextUrl.searchParams.get("plan")) {
+    nextUrl.searchParams.set("plan", plan);
+  }
+  const nextWithParams = `${nextUrl.pathname}${nextUrl.search}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,21 +101,19 @@ function RegisterInner() {
       });
 
       if (res.ok) {
-        const nextRaw = searchParams.get("next");
-        const next = nextRaw && nextRaw.startsWith("/") ? nextRaw : "/start-trial";
         const loginRes = await signIn("credentials", {
           redirect: false,
           email: formData.email,
           password: formData.password,
-          callbackUrl: next,
+          callbackUrl: nextWithParams,
         });
 
         if (loginRes?.error) {
-          router.push(`/login?next=${encodeURIComponent(next)}`);
+          router.push(`/login?next=${encodeURIComponent(nextWithParams)}`);
           return;
         }
 
-        router.push(next);
+        router.push(nextWithParams);
         router.refresh();
       } else {
         const data = await res.json();
@@ -175,11 +186,7 @@ function RegisterInner() {
             />
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg border border-red-100">
-              {error}
-            </div>
-          )}
+          {error ? <InlineNotification tone="error" centered>{error}</InlineNotification> : null}
 
           <Button type="submit" isLoading={loading}>
             Send
@@ -187,7 +194,7 @@ function RegisterInner() {
 
           <div className="text-center text-sm mt-4">
             <span className="text-gray-500">Already have an account? </span>
-            <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-500 transition-colors">
+            <Link href={`/login?next=${encodeURIComponent(nextWithParams)}`} className="font-semibold text-blue-600 hover:text-blue-500 transition-colors">
               Sign in
             </Link>
           </div>

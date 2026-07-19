@@ -6,6 +6,7 @@ import Header from "@/components/Landing/Header";
 import Footer from "@/components/Landing/Footer";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { InlineNotification } from "@/components/InlineNotification";
 import { Textarea } from "@/components/Textarea";
 
 export default function ContactPage() {
@@ -109,14 +110,14 @@ export default function ContactPage() {
               />
 
               {error ? (
-                <p className="text-sm text-red-400" data-testid="contact-error">
+                <InlineNotification tone="error" data-testid="contact-error">
                   {error}
-                </p>
+                </InlineNotification>
               ) : null}
               {success ? (
-                <p className="text-sm text-emerald-300" data-testid="contact-success">
+                <InlineNotification tone="success" data-testid="contact-success">
                   Message sent. Thanks!
-                </p>
+                </InlineNotification>
               ) : null}
 
               <div className="pt-2">

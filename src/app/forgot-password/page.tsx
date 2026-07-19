@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { InlineNotification } from "@/components/InlineNotification";
 import { Text } from "@/components/Text";
 
 export default function ForgotPasswordPage() {
@@ -66,9 +67,9 @@ export default function ForgotPasswordPage() {
 
         {sent ? (
           <div className="space-y-4">
-            <div className="text-green-700 text-sm text-center bg-green-50 p-3 rounded-lg border border-green-100">
+            <InlineNotification tone="success" centered>
               If an account exists for this email, you&apos;ll receive a password reset link shortly.
-            </div>
+            </InlineNotification>
 
             {devResetUrl && (
               <div className="text-sm text-center">

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { InlineNotification } from "@/components/InlineNotification";
 import { useToast } from "@/components/Toast";
 
 type Business = {
@@ -12,6 +13,11 @@ type Business = {
   phone?: string | null;
   email?: string | null;
   createdAt: string;
+  subscription?: {
+    plan: string;
+    status: string;
+    cancelAtPeriodEnd?: boolean;
+  } | null;
 };
 
 export default function OnboardingPage() {
@@ -24,6 +30,12 @@ export default function OnboardingPage() {
 
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const hasBusiness = useMemo(() => businesses.length > 0, [businesses]);
+  const currentBusiness = businesses[0] ?? null;
+  const currentSubscription = currentBusiness?.subscription ?? null;
+  const hasActiveSubscription =
+    currentSubscription?.status === "active" ||
+    currentSubscription?.status === "trialing" ||
+    Boolean(currentSubscription?.cancelAtPeriodEnd);
 
   const [form, setForm] = useState({
     name: "",
@@ -73,9 +85,9 @@ export default function OnboardingPage() {
       await loadBusinesses();
       showToast({
         type: "success",
-        message: "Business criado com sucesso.",
+        message: "Business created successfully. Continue to trial setup.",
       });
-      router.push("/dashboard");
+      router.push("/start-trial");
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unexpected error";
       setError(errorMessage);
@@ -95,11 +107,7 @@ export default function OnboardingPage() {
             </p>
           </div>
 
-          {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm text-center">
-              {error}
-            </div>
-          )}
+          {error ? <InlineNotification tone="error" centered>{error}</InlineNotification> : null}
 
           <div className="bg-white py-8 px-4 shadow-xl rounded-2xl sm:px-10 border border-gray-100">
             {loading ? (
@@ -120,18 +128,27 @@ export default function OnboardingPage() {
                   </div>
                   <h3 className="text-lg font-medium text-blue-900">Business already created!</h3>
                   <div className="mt-2 text-sm text-blue-700">
-                    <p className="font-semibold text-lg">{businesses[0].name}</p>
-                    {businesses[0].email && <p className="mt-1">{businesses[0].email}</p>}
-                    {businesses[0].phone && <p>{businesses[0].phone}</p>}
+                    <p className="font-semibold text-lg">{currentBusiness?.name}</p>
+                    {currentBusiness?.email && <p className="mt-1">{currentBusiness.email}</p>}
+                    {currentBusiness?.phone && <p>{currentBusiness.phone}</p>}
+                    {currentSubscription ? (
+                      <p className="mt-2">
+                        Subscription: {currentSubscription.plan} · {currentSubscription.status}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <Button
-                    onClick={() => router.push("/dashboard")}
-                  >
-                    Go to Dashboard
-                  </Button>
+                  {hasActiveSubscription ? (
+                    <Button onClick={() => router.push("/dashboard")}>
+                      Continue to Dashboard
+                    </Button>
+                  ) : (
+                    <Button onClick={() => router.push("/start-trial")}>
+                      Continue to Trial Setup
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : (
