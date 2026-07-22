@@ -38,7 +38,7 @@ export default function Hero() {
           </p>
 
           <div className="mt-10 max-w-lg">
-            <Link href="/register?next=/start-trial" data-testid="hero-start">
+            <Link href="/promo/trial" data-testid="hero-start">
               <Button className="!w-auto !px-8 shadow-[0_0_30px_-6px_rgba(34,197,94,0.55)]">Start free trial</Button>
             </Link>
             <p className="mt-3 text-xs text-zinc-500" data-testid="hero-trial-note">

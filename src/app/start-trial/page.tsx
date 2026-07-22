@@ -87,6 +87,8 @@ function StartTrialInner() {
   const subscription = business?.subscription ?? null;
   const trialEligible = !subscription?.trialUsedAt;
   const hasInviteCode = inviteCode.trim().length > 0;
+  const normalizedInviteCode = inviteCode.trim().toUpperCase();
+  const isPromo90DaysOffer = normalizedInviteCode === "VIP90DAYS";
   const hasActive =
     subscription?.status === "active" ||
     subscription?.status === "trialing" ||
@@ -119,7 +121,24 @@ function StartTrialInner() {
   }, []);
 
   useEffect(() => {
-    setInviteCode(initialInviteCode);
+    const normalized = initialInviteCode.trim();
+    if (normalized) {
+      const upper = normalized.toUpperCase();
+      setInviteCode(upper);
+      try {
+        window.localStorage.setItem("respondly_trial_invite_code", upper);
+      } catch {
+      }
+      return;
+    }
+
+    try {
+      const stored = String(window.localStorage.getItem("respondly_trial_invite_code") ?? "").trim();
+      if (!stored) return;
+      const upper = stored.toUpperCase();
+      setInviteCode((current) => (current.trim() ? current : upper));
+    } catch {
+    }
   }, [initialInviteCode]);
 
   async function startCheckout() {
@@ -192,7 +211,9 @@ function StartTrialInner() {
           <div className="text-center">
             <Text variant="h1">Start your free trial</Text>
             <Text variant="body" className="mt-2 text-gray-600">
-              30-day free trial. Card required. Cancel anytime.
+              {isPromo90DaysOffer
+                ? "90-day free trial. Card required. Cancel anytime."
+                : "30-day free trial. Card required. Cancel anytime."}
             </Text>
           </div>
 
@@ -258,7 +279,9 @@ function StartTrialInner() {
                     {hasActive
                       ? "You already have an active subscription."
                       : trialEligible
-                        ? "You’re eligible for a free trial."
+                        ? isPromo90DaysOffer
+                          ? "You’re eligible for a 90-day free trial with this offer."
+                          : "You’re eligible for a free trial."
                         : hasInviteCode
                           ? "This invite code can still apply an extended trial."
                           : "Trial already used for this business."}
@@ -281,7 +304,13 @@ function StartTrialInner() {
                     onChange={(e) => setInviteCode(e.target.value)}
                   />
                   <Button onClick={startCheckout} isLoading={startingTrial} disabled={startingTrial}>
-                    {trialEligible ? "Start 30-day free trial" : hasInviteCode ? "Continue with invite code" : "Continue to checkout"}
+                    {trialEligible
+                      ? isPromo90DaysOffer
+                        ? "Start 90-day free trial"
+                        : "Start 30-day free trial"
+                      : hasInviteCode
+                        ? "Continue with invite code"
+                        : "Continue to checkout"}
                   </Button>
                   <Button variant="outline" onClick={() => router.push("/subscription")} className="!w-auto">
                     Manage subscription

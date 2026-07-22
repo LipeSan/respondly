@@ -69,7 +69,7 @@ export default function Header({ showNav = true }: HeaderProps) {
               Log in
             </Button>
           </Link>
-          <Link href="/register?next=/start-trial" data-testid="header-cta-btn">
+          <Link href="/promo/trial" data-testid="header-cta-btn">
             <Button className="!w-auto !py-2 shadow-[0_0_24px_-6px_rgba(34,197,94,0.6)]">Start free trial</Button>
           </Link>
         </div>
