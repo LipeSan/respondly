@@ -6,6 +6,7 @@ import { Button } from "@/components/Button";
 import { Text } from "@/components/Text";
 import { Textarea } from "@/components/Textarea";
 import { useToast } from "@/components/Toast";
+import { formatDateTime } from "@/lib/date";
 
 type ReviewResponse = {
   id: string;
@@ -283,7 +284,7 @@ export default function ReviewsPage() {
                       {r.authorName ?? "—"}
                     </Text>
                     <Text variant="body" className="text-xs text-gray-500">
-                      {new Date(r.createdAt).toLocaleString()}
+                      {formatDateTime(r.createdAt)}
                     </Text>
                   </div>
 
@@ -364,7 +365,7 @@ export default function ReviewsPage() {
                             <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
                               <div className="flex items-center justify-between text-xs text-blue-800 mb-3">
                                 <span className="font-medium uppercase tracking-wide">Draft</span>
-                                <span>{new Date(draftResponse.createdAt).toLocaleString()}</span>
+                                <span>{formatDateTime(draftResponse.createdAt)}</span>
                               </div>
                               <Textarea
                                 label="Message"
@@ -381,7 +382,7 @@ export default function ReviewsPage() {
                               <div key={resp.id} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
                                 <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                                   <span className="font-medium uppercase tracking-wide">Method: {resp.method}</span>
-                                  <span>{new Date(resp.createdAt).toLocaleString()}</span>
+                                  <span>{formatDateTime(resp.createdAt)}</span>
                                 </div>
                                 <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
                                   {resp.finalText}

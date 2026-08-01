@@ -6,6 +6,7 @@ import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
 import { Text } from "@/components/Text";
 import { Analytics } from "@vercel/analytics/react";
+import { formatDate, formatDateTime } from "@/lib/date";
 import {
   ResponsiveContainer,
   LineChart as RechartsLineChart,
@@ -92,8 +93,7 @@ function formatMinutes(v: number | null) {
 }
 
 function formatDayLabel(isoDay: string) {
-  const d = new Date(`${isoDay}T00:00:00Z`);
-  return d.toLocaleDateString(undefined, { month: "short", day: "2-digit" });
+  return formatDate(`${isoDay}T00:00:00Z`);
 }
 
 function ChartTooltip({
@@ -326,7 +326,7 @@ export default function DashboardPage() {
   const customerSince = useMemo(() => {
     if (!metrics) return "—";
     const iso = metrics.subscription?.createdAt ?? metrics.business.createdAt;
-    return new Date(iso).toLocaleDateString();
+    return formatDate(iso);
   }, [metrics]);
 
   async function load(nextRange: 7 | 30 | 90, opts?: { silent?: boolean }) {
@@ -711,7 +711,7 @@ export default function DashboardPage() {
                           {r.rating}/5 · {r.authorName ?? "—"}
                         </Text>
                         <Text variant="body" className="mt-1 text-xs text-gray-500">
-                          {new Date(r.createdAt).toLocaleString()}
+                          {formatDateTime(r.createdAt)}
                         </Text>
                         <Text variant="body" className="mt-1 text-xs text-gray-500">
                           Draft: {r.method}
@@ -755,7 +755,7 @@ export default function DashboardPage() {
                             {r.rating}/5 · {r.authorName ?? "—"}
                           </Text>
                           <Text variant="body" className="mt-1 text-xs text-gray-500">
-                            {new Date(r.createdAt).toLocaleString()}
+                            {formatDateTime(r.createdAt)}
                           </Text>
                         </div>
                         <span

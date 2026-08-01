@@ -7,6 +7,7 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { InlineNotification } from "@/components/InlineNotification";
 import { Text } from "@/components/Text";
+import { formatDate } from "@/lib/date";
 
 type Subscription = {
   plan: string;
@@ -288,7 +289,7 @@ function StartTrialInner() {
                   </Text>
                   {subscription?.trialEndsAt ? (
                     <Text variant="body" className="mt-2 text-xs text-gray-500">
-                      Trial ends on {new Date(subscription.trialEndsAt).toLocaleDateString()}.
+                      Trial ends on {formatDate(subscription.trialEndsAt)}.
                     </Text>
                   ) : null}
                 </div>

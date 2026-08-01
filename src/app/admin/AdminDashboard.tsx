@@ -11,6 +11,7 @@ import {
 } from "@/app/admin/AdminCustomerCard";
 import { InlineNotification } from "@/components/InlineNotification";
 import { Text } from "@/components/Text";
+import { formatDate, formatDateTime } from "@/lib/date";
 
 type OverviewResponse = {
   admin: {
@@ -67,11 +68,6 @@ type TrialInvite = {
   };
   createdAt: string;
 };
-
-function formatDate(value?: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString();
-}
 
 export function AdminDashboard() {
   const router = useRouter();
@@ -638,7 +634,7 @@ export function AdminDashboard() {
                       </Text>
                     </div>
                     <Text variant="body" className="text-xs text-gray-500">
-                      {new Date(log.createdAt).toLocaleString()}
+                      {formatDateTime(log.createdAt)}
                     </Text>
                   </div>
                   <div className="mt-2 grid gap-2 text-sm text-gray-600 md:grid-cols-2">

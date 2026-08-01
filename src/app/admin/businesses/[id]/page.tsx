@@ -2,12 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { Text } from "@/components/Text";
 import { prisma } from "@/lib/db";
 import { getCurrentAdminUser, getAdminImpersonatedBusinessId } from "@/lib/admin";
+import { formatDateTime } from "@/lib/date";
 import { AdminBusinessActions } from "./AdminBusinessActions";
-
-function formatDate(value?: Date | string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
 
 function formatMoney(amount?: number | null, currency?: string | null) {
   if (typeof amount !== "number") return "—";
@@ -204,7 +200,7 @@ export default async function AdminBusinessDetailPage({
             {business.subscription ? `${business.subscription.plan} · ${business.subscription.status}` : "No plan"}
           </Text>
           <Text variant="body" className="mt-2 text-sm text-gray-600">
-            Trial ends: {formatDate(business.subscription?.trialEndsAt)}
+            Trial ends: {formatDateTime(business.subscription?.trialEndsAt)}
           </Text>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -241,8 +237,8 @@ export default async function AdminBusinessDetailPage({
               <div><span className="font-semibold text-gray-900">Business email:</span> {business.email || "—"}</div>
               <div><span className="font-semibold text-gray-900">Business phone:</span> {business.phone || "—"}</div>
               <div><span className="font-semibold text-gray-900">Timezone:</span> {business.timezone}</div>
-              <div><span className="font-semibold text-gray-900">Created:</span> {formatDate(business.createdAt)}</div>
-              <div><span className="font-semibold text-gray-900">Owner created:</span> {formatDate(business.user.createdAt)}</div>
+              <div><span className="font-semibold text-gray-900">Created:</span> {formatDateTime(business.createdAt)}</div>
+              <div><span className="font-semibold text-gray-900">Owner created:</span> {formatDateTime(business.user.createdAt)}</div>
               <div><span className="font-semibold text-gray-900">Current impersonation:</span> {isCurrent ? "Active" : "Inactive"}</div>
               <div><span className="font-semibold text-gray-900">Templates:</span> {business._count.templates}</div>
               <div><span className="font-semibold text-gray-900">Rules:</span> {business._count.rules}</div>
@@ -258,10 +254,10 @@ export default async function AdminBusinessDetailPage({
             <div className="mt-4 grid gap-3 text-sm text-gray-600 md:grid-cols-2">
               <div><span className="font-semibold text-gray-900">Plan:</span> {business.subscription?.plan || "—"}</div>
               <div><span className="font-semibold text-gray-900">Status:</span> {business.subscription?.status || "—"}</div>
-              <div><span className="font-semibold text-gray-900">Current period end:</span> {formatDate(business.subscription?.currentPeriodEnd)}</div>
-              <div><span className="font-semibold text-gray-900">Trial used at:</span> {formatDate(business.subscription?.trialUsedAt)}</div>
+              <div><span className="font-semibold text-gray-900">Current period end:</span> {formatDateTime(business.subscription?.currentPeriodEnd)}</div>
+              <div><span className="font-semibold text-gray-900">Trial used at:</span> {formatDateTime(business.subscription?.trialUsedAt)}</div>
               <div><span className="font-semibold text-gray-900">Cancel at period end:</span> {business.subscription?.cancelAtPeriodEnd ? "Yes" : "No"}</div>
-              <div><span className="font-semibold text-gray-900">Cancel at:</span> {formatDate(business.subscription?.cancelAt)}</div>
+              <div><span className="font-semibold text-gray-900">Cancel at:</span> {formatDateTime(business.subscription?.cancelAt)}</div>
               <div><span className="font-semibold text-gray-900">Stripe customer:</span> {business.subscription?.stripeCustomerId || "—"}</div>
               <div><span className="font-semibold text-gray-900">Stripe subscription:</span> {business.subscription?.stripeSubscriptionId || "—"}</div>
             </div>
@@ -289,7 +285,7 @@ export default async function AdminBusinessDetailPage({
                         {template.name}
                       </Text>
                       <Text variant="body" className="text-xs text-gray-500">
-                        {formatDate(template.createdAt)}
+                        {formatDateTime(template.createdAt)}
                       </Text>
                     </div>
                     <Text variant="body" className="mt-2 text-sm text-gray-600">
@@ -316,7 +312,7 @@ export default async function AdminBusinessDetailPage({
                         Priority {rule.priority} · {rule.responseType}
                       </Text>
                       <Text variant="body" className="text-xs text-gray-500">
-                        {formatDate(rule.createdAt)}
+                        {formatDateTime(rule.createdAt)}
                       </Text>
                     </div>
                     <div className="mt-2 grid gap-2 text-sm text-gray-600 md:grid-cols-2">
@@ -347,13 +343,13 @@ export default async function AdminBusinessDetailPage({
                         {event.status}
                       </Text>
                       <Text variant="body" className="text-xs text-gray-500">
-                        {formatDate(event.createdAt)}
+                        {formatDateTime(event.createdAt)}
                       </Text>
                     </div>
                     <div className="mt-2 grid gap-2 text-sm text-gray-600">
                       <div><span className="font-semibold text-gray-900">Event:</span> {event.stripeEventType}</div>
                       <div><span className="font-semibold text-gray-900">Amount:</span> {formatMoney(event.amount, event.currency)}</div>
-                      <div><span className="font-semibold text-gray-900">Paid at:</span> {formatDate(event.paidAt)}</div>
+                      <div><span className="font-semibold text-gray-900">Paid at:</span> {formatDateTime(event.paidAt)}</div>
                     </div>
                   </div>
                 ))
@@ -376,7 +372,7 @@ export default async function AdminBusinessDetailPage({
                         {review.rating} stars · {review.status}
                       </Text>
                       <Text variant="body" className="text-xs text-gray-500">
-                        {formatDate(review.createdAt)}
+                        {formatDateTime(review.createdAt)}
                       </Text>
                     </div>
                     <Text variant="body" className="mt-2 text-sm text-gray-600">
@@ -403,7 +399,7 @@ export default async function AdminBusinessDetailPage({
                         {log.action}
                       </Text>
                       <Text variant="body" className="text-xs text-gray-500">
-                        {formatDate(log.createdAt)}
+                        {formatDateTime(log.createdAt)}
                       </Text>
                     </div>
                     <div className="mt-2 grid gap-2 text-sm text-gray-600">

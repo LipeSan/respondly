@@ -8,6 +8,7 @@ import { Modal } from "@/components/Modal";
 import { Text } from "@/components/Text";
 import { useToast } from "@/components/Toast";
 import { BillingPlans } from "@/components/BillingPlans";
+import { formatDate, formatDateTime } from "@/lib/date";
 
 type Business = {
     id: string;
@@ -309,7 +310,7 @@ export default function SubscriptionPage() {
                                 {(isCancelScheduled ? cancelAtDate : subscription?.currentPeriodEnd) && (
                                     <Text variant="body" className="mt-1 text-xs text-gray-500">
                                         {isCancelScheduled ? "Cancels on " : "Renews on "}
-                                        {(cancelAtDate ?? new Date(subscription?.currentPeriodEnd as string)).toLocaleDateString()}
+                                        {formatDate(cancelAtDate ?? subscription?.currentPeriodEnd)}
                                     </Text>
                                 )}
                             </div>
@@ -339,10 +340,10 @@ export default function SubscriptionPage() {
                                 <Text variant="body" className="mt-1 font-semibold text-gray-900">
                                     {isCancelScheduled
                                         ? cancelAtDate
-                                            ? cancelAtDate.toLocaleDateString()
+                                            ? formatDate(cancelAtDate)
                                             : "Not scheduled"
                                         : subscription?.currentPeriodEnd
-                                            ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
+                                            ? formatDate(subscription.currentPeriodEnd)
                                         : "Not scheduled"}
                                 </Text>
                             </div>
@@ -450,7 +451,7 @@ export default function SubscriptionPage() {
                                         return (
                                             <tr key={p.id} className="text-gray-700">
                                                 <td className="py-3 pr-4 whitespace-nowrap">
-                                                    {new Date(baseWhen).toLocaleString()}
+                                                    {formatDateTime(baseWhen)}
                                                 </td>
                                                 <td className="py-3 pr-4 whitespace-nowrap">
                                                     <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badge}`}>
@@ -464,7 +465,7 @@ export default function SubscriptionPage() {
                                                     {p.lastEvent ? (
                                                         <div className="flex flex-col">
                                                             <span className="text-gray-700">
-                                                                {new Date(latestWhen).toLocaleString()}
+                                                                {formatDateTime(latestWhen)}
                                                             </span>
                                                             <span className="text-gray-500 text-xs">
                                                                 {p.lastEvent.status} · {p.lastEvent.stripeEventType}
@@ -599,7 +600,7 @@ export default function SubscriptionPage() {
                     </Text>
                     {cancelAtDate ? (
                         <Text variant="body" className="mt-3 text-sm font-semibold text-gray-900">
-                            Access ends on {cancelAtDate.toLocaleDateString()}.
+                            Access ends on {formatDate(cancelAtDate)}.
                         </Text>
                     ) : null}
                     <Text variant="body" className="mt-3 text-sm text-gray-600">

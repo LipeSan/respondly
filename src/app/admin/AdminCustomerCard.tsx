@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
 import { Text } from "@/components/Text";
+import { formatDate } from "@/lib/date";
 
 export type AdminCustomerRole = "user" | "support" | "admin";
 
@@ -42,11 +43,6 @@ export type AdminCustomerBusinessRow = {
     reviews: number;
   };
 };
-
-function formatDate(value?: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString();
-}
 
 function formatRelativeDays(value?: string | null) {
   if (!value) return "—";

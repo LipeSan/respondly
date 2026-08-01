@@ -10,6 +10,7 @@ import { Textarea } from "@/components/Textarea";
 import { BillingPlans } from "@/components/BillingPlans";
 import { AutoReplyCard } from "@/components/AutoReplyCard";
 import { useToast } from "@/components/Toast";
+import { formatDate } from "@/lib/date";
 
 type Business = {
   id: string;
@@ -402,7 +403,7 @@ Rules:
                   </svg>
                 </div>
                 <Text variant="subtitle" className="font-bold text-gray-900">
-                  Your Business
+                  Business
                 </Text>
               </div>
 
@@ -581,7 +582,11 @@ Rules:
                           : subscription?.currentPeriodEnd
                             ? new Date(subscription.currentPeriodEnd)
                             : null
-                      )?.toLocaleDateString()}
+                      ) ? formatDate(
+                        isCancelScheduled
+                          ? cancelAtDate
+                          : subscription?.currentPeriodEnd
+                      ) : null}
                     </Text>
                   )}
                   <Text variant="body" className="mt-3 text-sm text-gray-700 max-w-xl">

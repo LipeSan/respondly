@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { getAdminAccessLevelForUser, getAdminImpersonatedBusinessId } from "@/lib/admin";
 
 export async function GET() {
   const session = await getSession();
@@ -8,6 +9,62 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const accessLevel = getAdminAccessLevelForUser(user);
+
+  if (accessLevel) {
+    const impersonatedBusinessId = await getAdminImpersonatedBusinessId();
+    if (impersonatedBusinessId) {
+      const impersonatedBusiness = await prisma.business.findUnique({
+        where: { id: impersonatedBusinessId },
+        include: {
+          google: {
+            select: {
+              id: true,
+              createdAt: true,
+            },
+          },
+          subscription: {
+            select: {
+              plan: true,
+              status: true,
+              cancelAtPeriodEnd: true,
+              cancelAt: true,
+              currentPeriodEnd: true,
+              trialUsedAt: true,
+              trialEndsAt: true,
+            },
+          },
+        },
+      });
+      if (impersonatedBusiness) {
+        return NextResponse.json({
+          businesses: [
+            {
+              ...impersonatedBusiness,
+              subscription: impersonatedBusiness.subscription
+                ? {
+                    ...impersonatedBusiness.subscription,
+                    cancelAt: impersonatedBusiness.subscription.cancelAt
+                      ? impersonatedBusiness.subscription.cancelAt.toISOString()
+                      : null,
+                    currentPeriodEnd: impersonatedBusiness.subscription.currentPeriodEnd
+                      ? impersonatedBusiness.subscription.currentPeriodEnd.toISOString()
+                      : null,
+                    trialUsedAt: impersonatedBusiness.subscription.trialUsedAt
+                      ? impersonatedBusiness.subscription.trialUsedAt.toISOString()
+                      : null,
+                    trialEndsAt: impersonatedBusiness.subscription.trialEndsAt
+                      ? impersonatedBusiness.subscription.trialEndsAt.toISOString()
+                      : null,
+                  }
+                : null,
+            },
+          ],
+        });
+      }
+    }
+  }
 
   const businesses = await prisma.business.findMany({
     where: { userId: user.id },
