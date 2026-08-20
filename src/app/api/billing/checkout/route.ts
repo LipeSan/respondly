@@ -265,6 +265,43 @@ export async function POST(req: Request) {
       }
     }
 
+    async function cancelExistingCustomerSubscriptions(
+      custId: string,
+      ignoreIds: string[] = []
+    ): Promise<Array<{ id: string; status: string }>> {
+      if (!custId) return [];
+      const canceledItems: Array<{ id: string; status: string }> = [];
+      for (const status of ["active", "trialing"] as const) {
+        const page = await stripe.subscriptions.list({
+          customer: custId,
+          status,
+          limit: 20,
+        });
+        for (const s of page.data) {
+          if (ignoreIds.includes(s.id)) continue;
+          try {
+            const opts: { prorate?: boolean; invoice_now?: boolean } =
+              status === "active" ? { prorate: true, invoice_now: true } : {};
+            const canceled = await stripe.subscriptions.cancel(s.id, opts);
+            canceledItems.push({ id: s.id, status: canceled.status });
+            console.log("[billing:checkout] canceled previous subscription before checkout", {
+              customerId: custId,
+              canceledId: s.id,
+              canceledStatus: canceled.status,
+            });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error("[billing:checkout] failed to cancel previous subscription", {
+              customerId: custId,
+              subscriptionId: s.id,
+              error: msg,
+            });
+          }
+        }
+      }
+      return canceledItems;
+    }
+
     if (!existing?.id) {
       await prisma.subscription.create({
         data: {
@@ -278,13 +315,29 @@ export async function POST(req: Request) {
           currentPeriodEnd: null,
         },
       });
-    } else if (customerId && customerId !== existing.stripeCustomerId) {
-      await prisma.subscription.update({
-        where: { businessId: business.id },
-        data: {
-          stripeCustomerId: customerId,
-        },
-      });
+    } else {
+      const patches: { stripeCustomerId?: string } = {};
+      if (customerId && customerId !== existing.stripeCustomerId) {
+        patches.stripeCustomerId = customerId;
+      }
+      if (Object.keys(patches).length) {
+        await prisma.subscription.update({
+          where: { businessId: business.id },
+          data: patches,
+        });
+      }
+    }
+
+    // ✅ Plan-change safety: cancel any previous active/trialing subscriptions
+    // for this customer BEFORE creating the new checkout session. This works
+    // synchronously and does not depend on Stripe webhook delivery (important
+    // for local/dev environments without stripe listen / ngrok).
+    const effectiveCustomerId = customerId ?? existing?.stripeCustomerId ?? null;
+    const alreadyKnownToCancel = existing?.stripeSubscriptionId
+      ? [existing.stripeSubscriptionId]
+      : [];
+    if (effectiveCustomerId) {
+      await cancelExistingCustomerSubscriptions(effectiveCustomerId, alreadyKnownToCancel);
     }
 
     console.log("[billing:checkout] Prepared local subscription before checkout", {
@@ -292,6 +345,7 @@ export async function POST(req: Request) {
       plan,
       customerId,
       existingSubscription: Boolean(existing?.id),
+      effectiveCustomerId,
     });
 
     const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";

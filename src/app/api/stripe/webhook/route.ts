@@ -117,6 +117,78 @@ export async function POST(req: Request) {
     );
   }
 
+  async function cancelSiblingActiveSubscriptions(args: {
+    customerId: string;
+    keepSubscriptionId: string;
+    prorationBehavior?: "create_prorations" | "none" | "always_invoice";
+  }) {
+    const { customerId, keepSubscriptionId } = args;
+    if (!customerId || !keepSubscriptionId) return [];
+
+    const siblings = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "active",
+      limit: 20,
+    });
+
+    const toCancel = siblings.data.filter((s) => s.id !== keepSubscriptionId);
+    const results: Array<{ id: string; status: string }> = [];
+
+    for (const s of toCancel) {
+      try {
+        const canceled = await stripe.subscriptions.cancel(s.id, {
+          prorate: true,
+          invoice_now: true,
+        });
+        results.push({ id: s.id, status: canceled.status });
+        console.log("[stripe:webhook] canceled sibling active subscription", {
+          customerId,
+          keepSubscriptionId,
+          canceledId: s.id,
+          status: canceled.status,
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[stripe:webhook] failed to cancel sibling subscription", {
+          customerId,
+          keepSubscriptionId,
+          siblingId: s.id,
+          error: msg,
+        });
+      }
+    }
+
+    const trialing = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "trialing",
+      limit: 20,
+    });
+    const trialingToCancel = trialing.data.filter((s) => s.id !== keepSubscriptionId);
+
+    for (const s of trialingToCancel) {
+      try {
+        const canceled = await stripe.subscriptions.cancel(s.id);
+        results.push({ id: s.id, status: canceled.status });
+        console.log("[stripe:webhook] canceled sibling trialing subscription", {
+          customerId,
+          keepSubscriptionId,
+          canceledId: s.id,
+          status: canceled.status,
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[stripe:webhook] failed to cancel sibling trialing subscription", {
+          customerId,
+          keepSubscriptionId,
+          siblingId: s.id,
+          error: msg,
+        });
+      }
+    }
+
+    return results;
+  }
+
   async function upsertSubscription(opts: {
     businessId: string;
     plan?: "starter" | "pro";
@@ -403,6 +475,17 @@ export async function POST(req: Request) {
     const trialEndSec = (sub as unknown as { trial_end?: unknown }).trial_end ?? null;
     const trialEndsAt = typeof trialEndSec === "number" ? new Date(trialEndSec * 1000) : null;
 
+    const resolvedCustomerId = customerId ?? subCustomerId ?? null;
+
+    // ✅ Cleanup: cancel any other active/trialing subscriptions for the same
+    // customer (plan-change / duplicate-subscription safety).
+    if (resolvedCustomerId) {
+      await cancelSiblingActiveSubscriptions({
+        customerId: resolvedCustomerId,
+        keepSubscriptionId: sub.id,
+      });
+    }
+
     // ✅ Update with the real status + IDs
     await prisma.subscription.upsert({
       where: { businessId },
@@ -414,7 +497,7 @@ export async function POST(req: Request) {
         cancelAt,
         trialUsedAt: sub.status === "trialing" && trialEndsAt ? new Date() : null,
         trialEndsAt: trialEndsAt ?? null,
-        stripeCustomerId: customerId ?? subCustomerId,
+        stripeCustomerId: resolvedCustomerId,
         stripeSubscriptionId: sub.id,
         currentPeriodEnd,
       },
@@ -424,7 +507,7 @@ export async function POST(req: Request) {
         cancelAtPeriodEnd,
         cancelAt,
         ...(sub.status === "trialing" && trialEndsAt ? { trialEndsAt } : {}),
-        stripeCustomerId: (customerId ?? subCustomerId) || undefined,
+        stripeCustomerId: resolvedCustomerId || undefined,
         stripeSubscriptionId: sub.id,
         currentPeriodEnd: currentPeriodEnd ?? undefined,
       },
@@ -440,7 +523,7 @@ export async function POST(req: Request) {
     console.log("[stripe:webhook] saved subscription from checkout.session.completed", {
       businessId,
       status: sub.status,
-      stripeCustomerId: customerId ?? subCustomerId,
+      stripeCustomerId: resolvedCustomerId,
       stripeSubscriptionId: sub.id,
       currentPeriodEnd,
     });
@@ -491,6 +574,15 @@ export async function POST(req: Request) {
 
       const plan: "starter" | "pro" = session.metadata?.plan === "pro" ? "pro" : "starter";
 
+      const sCustomerId = customerId ?? normalizeStripeId((s as { customer?: unknown }).customer) ?? null;
+
+      if (sCustomerId) {
+        await cancelSiblingActiveSubscriptions({
+          customerId: sCustomerId,
+          keepSubscriptionId: s.id,
+        });
+      }
+
       await prisma.subscription.upsert({
         where: { businessId },
         create: {
@@ -501,7 +593,7 @@ export async function POST(req: Request) {
           cancelAt,
           trialUsedAt: s.status === "trialing" && trialEndsAt ? new Date() : null,
           trialEndsAt: trialEndsAt ?? null,
-          stripeCustomerId: customerId ?? normalizeStripeId((s as { customer?: unknown }).customer),
+          stripeCustomerId: sCustomerId,
           stripeSubscriptionId: subId,
           currentPeriodEnd,
         },
@@ -511,7 +603,7 @@ export async function POST(req: Request) {
           cancelAtPeriodEnd,
           cancelAt,
           ...(s.status === "trialing" && trialEndsAt ? { trialEndsAt } : {}),
-          stripeCustomerId: customerId ?? undefined,
+          stripeCustomerId: sCustomerId ?? undefined,
           stripeSubscriptionId: subId,
           currentPeriodEnd: currentPeriodEnd ?? undefined,
         },
@@ -899,6 +991,15 @@ export async function POST(req: Request) {
     // plan from price
     const priceId = sub.items?.data?.[0]?.price?.id ?? null;
     const plan = derivePlanFromPrice(priceId);
+
+    // ✅ Plan change safety: a new subscription was just created.
+    // Cancel any other active/trialing siblings for the same customer.
+    if (event.type === "customer.subscription.created") {
+      await cancelSiblingActiveSubscriptions({
+        customerId,
+        keepSubscriptionId: sub.id,
+      });
+    }
 
     // try update by customerId
     const updated = await prisma.subscription.updateMany({
