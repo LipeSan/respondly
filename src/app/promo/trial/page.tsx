@@ -18,7 +18,7 @@ const organizationLd = getJsonLdOrganization(siteUrl);
 const softwareLd = getJsonLdSoftwareApplication(siteUrl, "promo");
 
 export const metadata: Metadata = {
-  title: `${SITE_NAME} — 90-Day Free Trial (VIP90DAYS)`,
+  title: "90-Day Free Trial (VIP90DAYS)",
   description:
     "Get 90 days of Respondly free. Automate Google review replies with on-brand templates or AI. Card required. Cancel anytime.",
   keywords: joinKeywords([
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: canonicalUrl,
-    title: `${SITE_NAME} — 90-Day Free Trial (VIP90DAYS)`,
+    title: "90-Day Free Trial (VIP90DAYS)",
     description:
       "Claim your 90 days free with VIP90DAYS. Automate Google review replies with templates or AI that reads every review like your best teammate.",
     images: [
