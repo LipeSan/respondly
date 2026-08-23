@@ -15,7 +15,7 @@ export default function Problem() {
     <section data-testid="problem-section" className="relative py-24 sm:py-32 border-t border-white/5">
       <div className="absolute inset-0 dot-grid opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_70%)]" />
       <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
-        <span className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-semibold">The Reality</span>
+        <span className="text-xs uppercase tracking-[0.25em] text-zinc-400 font-semibold">The Reality</span>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

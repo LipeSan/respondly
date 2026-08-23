@@ -33,7 +33,7 @@ export default function FAQ() {
     <section id="faq" data-testid="faq-section" className="relative py-24 sm:py-32">
       <div className="max-w-3xl mx-auto px-6 lg:px-8">
         <div className="text-center">
-          <span className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-semibold">Questions</span>
+          <span className="text-xs uppercase tracking-[0.25em] text-zinc-400 font-semibold">Questions</span>
           <h2 className="font-heading mt-4 text-4xl sm:text-5xl font-bold tracking-tight">
             Things people ask before signing up.
           </h2>

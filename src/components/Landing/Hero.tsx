@@ -1,6 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { Sparkles, Star } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 
@@ -12,7 +13,15 @@ export default function Hero() {
   return (
     <section id="top" data-testid="hero-section" className="relative pt-32 pb-24 sm:pt-40 sm:pb-32">
       <div className="absolute inset-0">
-        <img src={HERO_BG} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        <Image
+          src={HERO_BG}
+          alt=""
+          aria-hidden
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover opacity-30"
+        />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black" />
         <div className="aurora" />
         <div className="grain" />
@@ -41,12 +50,12 @@ export default function Hero() {
             <Link href="/promo/trial" data-testid="hero-start">
               <Button className="!w-auto !px-8 shadow-[0_0_30px_-6px_rgba(34,197,94,0.55)]">Start free trial</Button>
             </Link>
-            <p className="mt-3 text-xs text-zinc-500" data-testid="hero-trial-note">
+            <p className="mt-3 text-xs text-zinc-400" data-testid="hero-trial-note">
               30-day free trial. Card required. Cancel anytime.
             </p>
           </div>
 
-          <div className="mt-6 flex items-center gap-3 text-xs text-zinc-500">
+          <div className="mt-6 flex items-center gap-3 text-xs text-zinc-400">
             <div className="flex">
               {[0,1,2,3,4].map((i)=>(<Star key={i} className="h-4 w-4 text-yellow-400 fill-yellow-400" />))}
             </div>
@@ -74,7 +83,7 @@ function ReviewSimulator() {
   return (
     <div data-testid="hero-review-card" className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">Live preview</span>
+        <span className="text-xs uppercase tracking-[0.2em] text-zinc-400">Live preview</span>
         <span className="text-xs text-green-400">● AI Pro</span>
       </div>
 
@@ -85,14 +94,14 @@ function ReviewSimulator() {
             <p className="text-sm font-semibold">Marina S.</p>
             <div className="flex gap-0.5">
               {[0,1,2].map((i)=>(<Star key={i} className="h-3 w-3 text-yellow-400 fill-yellow-400" />))}
-              {[0,1].map((i)=>(<Star key={i} className="h-3 w-3 text-zinc-700" />))}
+              {[0,1].map((i)=>(<Star key={i} className="h-3 w-3 text-zinc-500" />))}
             </div>
           </div>
         </div>
         <p className="text-sm text-zinc-300">Coffee was great but I waited 15 minutes for it. Staff seemed busy.</p>
       </div>
 
-      <div className="flex items-center justify-center text-xs text-zinc-500 gap-2">
+      <div className="flex items-center justify-center text-xs text-zinc-400 gap-2">
         <span className="h-px w-8 bg-zinc-800" />
         AI replies in 3.2s
         <span className="h-px w-8 bg-zinc-800" />

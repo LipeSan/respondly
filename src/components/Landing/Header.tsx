@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 
@@ -38,12 +39,17 @@ export default function Header({ showNav = true }: HeaderProps) {
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
         <a href="#top" data-testid="header-logo-link" className="flex items-center gap-2">
-          <img
-            src={LOGO_FULL}
-            alt="Respondly"
-            className="h-9 w-auto object-contain"
-            style={{ filter: "drop-shadow(0 0 24px rgba(37,99,235,0.35))" }}
-          />
+          <span className="relative inline-flex h-9 w-auto items-center">
+            <Image
+              src={LOGO_FULL}
+              alt="Respondly"
+              width={128}
+              height={36}
+              priority
+              className="h-9 w-auto object-contain"
+              style={{ filter: "drop-shadow(0 0 24px rgba(37,99,235,0.35))" }}
+            />
+          </span>
         </a>
 
         {showNav ? (

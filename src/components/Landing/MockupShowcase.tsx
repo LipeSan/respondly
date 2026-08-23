@@ -10,7 +10,7 @@ export default function MockupShowcase() {
   return (
     <section data-testid="mockup-section" className="relative py-24 sm:py-32">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
-        <span className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-semibold">One dashboard</span>
+        <span className="text-xs uppercase tracking-[0.25em] text-zinc-400 font-semibold">One dashboard</span>
         <h2 className="font-heading mt-4 text-4xl sm:text-5xl font-bold tracking-tight max-w-3xl mx-auto">
           Your reviews. <span className="gradient-text">Auto-piloted.</span>
         </h2>

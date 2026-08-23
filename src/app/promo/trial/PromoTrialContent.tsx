@@ -113,7 +113,7 @@ export function PromoTrialContent() {
       <section className="relative border-b border-white/5 py-24 sm:py-28">
         <div className="absolute inset-0 dot-grid opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_75%)]" />
         <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Why this page converts</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-400">Why this page converts</span>
           <h2 className="font-heading mt-4 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
             The same visual universe. <span className="gradient-text">A more direct conversation.</span>
           </h2>
@@ -133,7 +133,7 @@ export function PromoTrialContent() {
                 className="rounded-3xl border border-white/10 bg-white/[0.03] p-8"
               >
                 <item.icon className="h-6 w-6 text-zinc-300" />
-                <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">{item.eyebrow}</p>
+                <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400">{item.eyebrow}</p>
                 <h3 className="font-heading mt-4 text-2xl font-semibold text-white">{item.title}</h3>
                 <p className="mt-4 text-sm leading-7 text-zinc-400">{item.description}</p>
               </motion.div>
@@ -145,7 +145,7 @@ export function PromoTrialContent() {
       <section className="relative py-24 sm:py-28">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.12),transparent_25%),radial-gradient(circle_at_70%_40%,rgba(34,197,94,0.1),transparent_22%)]" />
         <div className="mx-auto max-w-5xl px-6 text-center lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Campaign-ready</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">Campaign-ready</p>
           <h2 className="font-heading mt-4 text-4xl font-bold tracking-tight sm:text-6xl">
             Send traffic to an offer that <span className="gradient-text">continues inside the product.</span>
           </h2>

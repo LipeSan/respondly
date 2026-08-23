@@ -43,14 +43,14 @@ export default function Pricing() {
     <section id="pricing" data-testid="pricing-section" className="relative py-24 sm:py-32 border-t border-white/5">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center">
-          <span className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-semibold">Pricing</span>
+          <span className="text-xs uppercase tracking-[0.25em] text-zinc-400 font-semibold">Pricing</span>
           <h2 className="font-heading mt-4 text-4xl sm:text-5xl font-bold tracking-tight">
             Simple plans. <span className="gradient-text">Real ROI.</span>
           </h2>
           <p className="mt-4 max-w-xl mx-auto text-zinc-400">
             No setup fees. Cancel anytime. Start with templates, upgrade to AI when you want it on autopilot.
           </p>
-          <p className="mt-3 text-sm text-zinc-500">
+          <p className="mt-3 text-sm text-zinc-400">
             Includes a 30-day free trial. Card required.
           </p>
         </div>
@@ -88,19 +88,19 @@ function PlanCard({ plan, delay }: { plan: Plan; delay: number }) {
       )}
       <div className="flex items-baseline justify-between">
         <h3 className="font-heading text-2xl font-bold">{plan.name}</h3>
-        <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">{plan.tag}</span>
+        <span className="text-xs uppercase tracking-[0.2em] text-zinc-400">{plan.tag}</span>
       </div>
       <p className="mt-3 text-sm text-zinc-400">{plan.description}</p>
 
       <div className="mt-6 flex items-baseline gap-1">
         <span className="font-heading text-5xl font-bold">${plan.price}</span>
-        <span className="text-zinc-500">/mo</span>
+        <span className="text-zinc-400">/mo</span>
       </div>
 
       <ul className="mt-6 space-y-3">
         {plan.features.map((f) => (
           <li key={f} className="flex items-start gap-3 text-sm text-zinc-300">
-            <Check className={`h-5 w-5 shrink-0 ${plan.highlight ? "text-green-400" : "text-zinc-500"}`} />
+            <Check className={`h-5 w-5 shrink-0 ${plan.highlight ? "text-green-400" : "text-zinc-400"}`} />
             <span>{f}</span>
           </li>
         ))}

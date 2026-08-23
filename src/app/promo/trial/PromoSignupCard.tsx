@@ -130,7 +130,7 @@ export function PromoSignupCard() {
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">Instant signup</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-400">Instant signup</p>
           <h2 className="font-heading mt-3 text-3xl font-bold tracking-tight text-white">Activate the offer</h2>
           <p className="mt-2 text-sm text-zinc-400">Create your account and continue with the 90-day trial ready to go.</p>
         </div>
@@ -140,7 +140,7 @@ export function PromoSignupCard() {
       </div>
 
       <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Starting plan</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400">Starting plan</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {(["starter", "pro"] as Plan[]).map((option) => (
             <button
@@ -157,7 +157,7 @@ export function PromoSignupCard() {
             </button>
           ))}
         </div>
-        <div className="mt-4 flex items-center justify-between text-xs text-zinc-500">
+        <div className="mt-4 flex items-center justify-between text-xs text-zinc-400">
           <span>Code applied</span>
           <span className="font-mono text-zinc-300">{inviteCode}</span>
         </div>
@@ -234,7 +234,7 @@ export function PromoSignupCard() {
         </div>
       </div>
 
-      <div className="mt-5 text-center text-sm text-zinc-500">
+      <div className="mt-5 text-center text-sm text-zinc-400">
         Already have an account?{" "}
         <Link href={`/login?next=${encodeURIComponent(startTrialUrl)}`} className="font-semibold text-blue-300 hover:text-white">
           Sign in

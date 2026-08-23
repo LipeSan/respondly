@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
 import { Languages, Shield, Zap, FileText, BarChart3, Bot } from "lucide-react";
 
@@ -13,7 +14,7 @@ export default function Features() {
     <section id="features" data-testid="features-section" className="relative py-24 sm:py-32">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-3xl">
-          <span className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-semibold">Built for response</span>
+          <span className="text-xs uppercase tracking-[0.25em] text-zinc-400 font-semibold">Built for response</span>
           <h2 className="font-heading mt-4 text-4xl sm:text-5xl font-bold tracking-tight">
             Templates when you need speed. <span className="gradient-text">AI when you need nuance.</span>
           </h2>
@@ -29,7 +30,14 @@ export default function Features() {
             className="relative md:col-span-2 lg:col-span-2 lg:row-span-2 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-600/10 via-zinc-950 to-green-500/10 p-8 overflow-hidden group"
           >
             <div className="absolute -right-10 -bottom-10 w-64 h-64 opacity-80">
-              <img src={FEATURE_ICON_3D} alt="" className="w-full h-full object-contain" />
+              <Image
+                src={FEATURE_ICON_3D}
+                alt=""
+                aria-hidden
+                fill
+                sizes="256px"
+                className="object-contain"
+              />
             </div>
             <span className="text-xs uppercase tracking-[0.2em] font-semibold text-blue-300">Pro Plan</span>
             <h3 className="font-heading mt-4 text-3xl font-bold max-w-md leading-tight">

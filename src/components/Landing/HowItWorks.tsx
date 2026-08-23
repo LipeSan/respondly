@@ -27,9 +27,9 @@ export default function HowItWorks() {
     <section id="how" data-testid="how-section" className="relative py-24 sm:py-32 border-t border-white/5">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-3xl">
-          <span className="text-xs uppercase tracking-[0.25em] text-zinc-500 font-semibold">How it works</span>
+          <span className="text-xs uppercase tracking-[0.25em] text-zinc-400 font-semibold">How it works</span>
           <h2 className="font-heading mt-4 text-4xl sm:text-5xl font-bold tracking-tight">
-            Three steps. <span className="text-zinc-500">That&apos;s it.</span>
+            Three steps. <span className="text-zinc-400">That&apos;s it.</span>
           </h2>
         </div>
 

@@ -1,28 +1,83 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import Link from "next/link";
 import Header from "@/components/Landing/Header";
 import Footer from "@/components/Landing/Footer";
+import {
+  SITE_NAME,
+  DEFAULT_KEYWORDS,
+  DEFAULT_OG_IMAGE,
+  getSiteUrl,
+  joinKeywords,
+  getJsonLdOrganization,
+} from "@/lib/seo";
+
+const siteUrl = getSiteUrl();
+const title = `Terms & Conditions | ${SITE_NAME}`;
+const description =
+  "Respondly Terms & Conditions. Service agreement covering account access, Google Business Profile integrations, AI-generated content, acceptable use, billing, intellectual property, and liability.";
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions | Respondly",
+  title,
+  description,
+  keywords: joinKeywords([
+    ...DEFAULT_KEYWORDS,
+    "terms",
+    "terms and conditions",
+    "terms of service",
+    "legal",
+    "service agreement",
+  ]),
+  alternates: {
+    canonical: "/terms",
+  },
+  openGraph: {
+    type: "website",
+    url: `${siteUrl}/terms`,
+    siteName: SITE_NAME,
+    title,
+    description,
+    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: `${SITE_NAME} terms and conditions` }],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [DEFAULT_OG_IMAGE],
+  },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
 export default function TermsPage() {
+  const orgLd = getJsonLdOrganization(siteUrl);
   return (
-    <main data-testid="terms-page" className="relative min-h-screen bg-black text-white overflow-x-hidden">
-      <Header showNav={false} />
+    <>
+      <Script
+        id="ld-json-terms-org"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
+      />
+      <main data-testid="terms-page" className="relative min-h-screen bg-black text-white overflow-x-hidden">
+        <Header showNav={false} />
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-28 pb-20">
-        <div className="max-w-3xl">
-          <h1 className="font-heading text-4xl sm:text-5xl font-bold tracking-tight">Terms & Conditions</h1>
-          <p className="mt-3 text-sm text-zinc-500">Last updated: May 18, 2026</p>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-28 pb-20">
+          <div className="max-w-3xl">
+            <h1 className="font-heading text-4xl sm:text-5xl font-bold tracking-tight">Terms & Conditions</h1>
+            <p className="mt-3 text-sm text-zinc-400">Last updated: May 18, 2026</p>
 
-          <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-8 sm:p-10">
-            <div className="space-y-8 text-zinc-300 leading-relaxed">
+            <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-8 sm:p-10">
+              <div className="space-y-8 text-zinc-300 leading-relaxed">
             <section className="space-y-3">
               <h2 className="font-heading text-xl font-semibold text-white">1. Acceptance</h2>
               <p>
@@ -109,22 +164,23 @@ export default function TermsPage() {
                 acceptance of the updated Terms.
               </p>
             </section>
+              </div>
+            </div>
+
+            <div className="mt-10 border-t border-white/10 pt-6 text-sm text-zinc-400">
+              <p>
+                Back to{" "}
+                <Link href="/" className="text-white hover:text-zinc-200 font-medium">
+                  the homepage
+                </Link>
+                .
+              </p>
             </div>
           </div>
-
-          <div className="mt-10 border-t border-white/10 pt-6 text-sm text-zinc-400">
-            <p>
-              Back to{" "}
-              <Link href="/" className="text-white hover:text-zinc-200 font-medium">
-                the homepage
-              </Link>
-              .
-            </p>
-          </div>
         </div>
-      </div>
 
-      <Footer />
-    </main>
+        <Footer />
+      </main>
+    </>
   );
 }
