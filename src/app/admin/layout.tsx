@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { getCurrentAdminUser } from "@/lib/admin";
+import { AdminNav } from "./AdminNav";
 
 export default async function AdminLayout({
   children,
@@ -19,8 +20,16 @@ export default async function AdminLayout({
         userEmail={adminContext.user.email}
         isAdmin
       />
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        {children}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-8 lg:px-8">
+        <aside className="mb-6 lg:mb-0">
+          <p className="mb-2 hidden px-3 text-xs font-semibold uppercase tracking-wider text-gray-400 lg:block">
+            Admin · {adminContext.accessLevel}
+          </p>
+          <div className="lg:sticky lg:top-8">
+            <AdminNav />
+          </div>
+        </aside>
+        <main className="min-w-0">{children}</main>
       </div>
     </div>
   );

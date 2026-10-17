@@ -1,11 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { InlineNotification } from "@/components/InlineNotification";
+import { Select } from "@/components/Select";
 import { AdminSendEmailModal, type AdminEmailRecipient } from "@/app/admin/AdminSendEmailModal";
+
+const customerPages = [
+  { href: "/configuration", label: "Configuration" },
+  { href: "/rules", label: "Rules" },
+  { href: "/templates", label: "Templates" },
+  { href: "/reviews", label: "Reviews" },
+];
 
 export function AdminBusinessActions({
   businessId,
@@ -40,69 +47,26 @@ export function AdminBusinessActions({
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unexpected error";
       setError(message);
-    } finally {
       setLoadingKey(null);
     }
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href="/admin"
-          className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
-        >
-          Back to admin
-        </Link>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
-          className="!w-auto px-5"
+          className="!w-auto !py-2 px-4"
           isLoading={loadingKey === "/dashboard"}
           onClick={() => openBusiness("/dashboard")}
         >
-          {isCurrent ? "Return to dashboard" : "Open dashboard"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="!w-auto px-5"
-          isLoading={loadingKey === "/configuration"}
-          onClick={() => openBusiness("/configuration")}
-        >
-          Configuration
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="!w-auto px-5"
-          isLoading={loadingKey === "/rules"}
-          onClick={() => openBusiness("/rules")}
-        >
-          Rules
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="!w-auto px-5"
-          isLoading={loadingKey === "/templates"}
-          onClick={() => openBusiness("/templates")}
-        >
-          Templates
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="!w-auto px-5"
-          isLoading={loadingKey === "/reviews"}
-          onClick={() => openBusiness("/reviews")}
-        >
-          Reviews
+          {isCurrent ? "Return to their dashboard" : "Open as customer"}
         </Button>
         {emailRecipient ? (
           <Button
             type="button"
             variant="outline"
-            className="!w-auto px-5"
+            className="!w-auto !py-2 px-4"
             onClick={() => {
               setNotice(null);
               setIsEmailOpen(true);
@@ -111,6 +75,24 @@ export function AdminBusinessActions({
             Send email
           </Button>
         ) : null}
+        <Select
+          compact
+          id="adminOpenCustomerPage"
+          aria-label="Open a customer page"
+          value=""
+          disabled={loadingKey !== null}
+          onChange={(e) => {
+            if (e.target.value) void openBusiness(e.target.value);
+          }}
+          className="!py-2"
+        >
+          <option value="">{loadingKey && loadingKey !== "/dashboard" ? "Opening..." : "Open page..."}</option>
+          {customerPages.map((page) => (
+            <option key={page.href} value={page.href}>
+              {page.label}
+            </option>
+          ))}
+        </Select>
       </div>
       {error ? <InlineNotification tone="error">{error}</InlineNotification> : null}
       {notice ? <InlineNotification tone="success">{notice}</InlineNotification> : null}

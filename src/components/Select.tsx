@@ -16,10 +16,12 @@ import { Text } from "./Text";
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: ReactNode;
   error?: string;
+  /** Smaller, auto-width trigger for toolbars and inline controls. */
+  compact?: boolean;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className = "", label, error, id, children, value, defaultValue, onChange, disabled, ...props }, ref) => {
+  ({ className = "", label, error, compact = false, id, children, value, defaultValue, onChange, disabled, ...props }, ref) => {
     const rootRef = useRef<HTMLDivElement | null>(null);
     const [open, setOpen] = useState(false);
     const isControlled = value !== undefined;
@@ -99,7 +101,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     }
 
     return (
-      <div className="w-full" ref={rootRef}>
+      <div className={compact ? "inline-block" : "w-full"} ref={rootRef}>
         {label && (
           <Text variant="label" htmlFor={id} className="mb-1">
             {label}
@@ -123,7 +125,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             disabled={disabled}
             aria-haspopup="listbox"
             aria-expanded={open}
-            className={`relative block w-full text-left px-4 py-3 bg-gray-50 border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
+            className={`relative block w-full text-left border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
+              compact ? "bg-white py-1.5 pl-3 pr-8 text-sm font-medium" : "bg-gray-50 px-4 py-3"
+            } ${
               error
                 ? "border-red-500 focus:ring-red-500 focus:border-transparent"
                 : "border-gray-200 focus:ring-blue-500 focus:border-transparent"
@@ -133,8 +137,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               setOpen((v) => !v);
             }}
           >
-            <span className="block truncate pr-8">{selectedLabel || "Select..."}</span>
-            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+            <span className={`block truncate ${compact ? "" : "pr-8"}`}>{selectedLabel || "Select..."}</span>
+            <span
+              className={`pointer-events-none absolute inset-y-0 right-0 flex items-center text-gray-500 ${compact ? "px-2.5" : "px-4"}`}
+            >
               <svg
                 className={`h-4 w-4 fill-current transition-transform ${open ? "rotate-180" : ""}`}
                 xmlns="http://www.w3.org/2000/svg"
@@ -148,7 +154,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           {open && !disabled && (
             <div
               role="listbox"
-              className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
+              className={`absolute z-50 mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl ${
+                compact ? "right-0 min-w-full w-max max-w-xs" : "w-full"
+              }`}
             >
               <div className="max-h-64 overflow-auto py-1">
                 {options.map((o) => {
