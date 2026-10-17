@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/Text";
 import { Textarea } from "@/components/Textarea";
 import { useToast } from "@/components/Toast";
-import { formatDateTime } from "@/lib/date";
+import { InlineNotification } from "@/components/InlineNotification";
+import { formatDate, formatDateTime } from "@/lib/date";
 
 type ReviewResponse = {
   id: string;
@@ -16,6 +17,31 @@ type ReviewResponse = {
   sentAt?: string | null;
 };
 
+type ReviewStatus = "pending" | "responded" | "failed" | "skipped";
+// "before_automation" is not a stored status: it's a pending review posted on
+// Google before the business connected, which automation never answers.
+type StatusFilter = ReviewStatus | "before_automation" | "all";
+type StatusCounts = Record<StatusFilter, number>;
+
+const PAGE_SIZE = 50;
+const emptyCounts: StatusCounts = {
+  pending: 0,
+  responded: 0,
+  failed: 0,
+  skipped: 0,
+  before_automation: 0,
+  all: 0,
+};
+const filterOptions: StatusFilter[] = ["pending", "responded", "failed", "skipped", "before_automation", "all"];
+const filterLabels: Record<StatusFilter, string> = {
+  pending: "Pending",
+  responded: "Responded",
+  failed: "Failed",
+  skipped: "Skipped",
+  before_automation: "Before automation",
+  all: "All",
+};
+
 type Review = {
   id: string;
   source?: string;
@@ -23,11 +49,17 @@ type Review = {
   rating: number;
   authorName?: string | null;
   comment?: string | null;
-  status: "pending" | "responded" | "failed" | "skipped";
+  status: ReviewStatus;
   createdAt: string;
+  createdAtGoogle?: string | null;
   lastError?: string | null;
+  beforeAutomation?: boolean;
   responses?: ReviewResponse[];
 };
+
+function getFilterBucket(r: Review): Exclude<StatusFilter, "all"> {
+  return r.beforeAutomation ? "before_automation" : r.status;
+}
 
 function Stars({ n }: { n: number }) {
   return (
@@ -50,6 +82,9 @@ function Stars({ n }: { n: number }) {
 }
 
 function getStatusBadge(r: Review) {
+  if (r.beforeAutomation) {
+    return { label: "Not automated", classes: "bg-gray-100 text-gray-600" };
+  }
   const hasDraft = Boolean(r.responses?.some((resp) => !resp.sentAt));
   if (r.status === "pending" && hasDraft) {
     return { label: "Draft", classes: "bg-blue-100 text-blue-800" };
@@ -63,9 +98,13 @@ function getStatusBadge(r: Review) {
 export default function ReviewsPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const [status, setStatus] = useState<"all" | "pending" | "responded" | "failed" | "skipped">("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [items, setItems] = useState<Review[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [counts, setCounts] = useState<StatusCounts>(emptyCounts);
+  const [automationStartsAt, setAutomationStartsAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [openId, setOpenId] = useState<string | null>(null);
@@ -74,41 +113,73 @@ export default function ReviewsPage() {
   const [publishing, setPublishing] = useState(false);
   const [draftText, setDraftText] = useState("");
 
+  // Aborts the in-flight list request when the filter changes, so a slow
+  // response for the old filter can't be merged into the new list.
+  const listRequestRef = useRef<AbortController | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
   const draftResponse = useMemo(() => {
     return detail?.responses?.find((r) => !r.sentAt) ?? null;
   }, [detail]);
 
-  const counts = useMemo(() => {
-    const c = { pending: 0, responded: 0, failed: 0, skipped: 0 };
-    for (const r of items) c[r.status] = (c[r.status] as number) + 1;
-    return c;
-  }, [items]);
+  const loadPage = useCallback(
+    async (cursor: string | null) => {
+      listRequestRef.current?.abort();
+      const controller = new AbortController();
+      listRequestRef.current = controller;
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/reviews?status=${status}&take=100`, { cache: "no-store" });
-      const data = await res.json();
-      if (res.status === 401) {
-        router.push("/login");
-        router.refresh();
-        return;
+      if (cursor) setLoadingMore(true);
+      else setLoading(true);
+      setError(null);
+
+      try {
+        const params = new URLSearchParams({ status, take: String(PAGE_SIZE) });
+        if (cursor) params.set("cursor", cursor);
+        const res = await fetch(`/api/reviews?${params}`, { cache: "no-store", signal: controller.signal });
+        const data = await res.json();
+        if (res.status === 401) {
+          router.push("/login");
+          router.refresh();
+          return;
+        }
+        if (data?.code === "NO_BUSINESS") {
+          router.push("/onboarding");
+          router.refresh();
+          return;
+        }
+        if (!res.ok) throw new Error(data?.error || "Failed to load reviews");
+
+        const page: Review[] = data.reviews ?? [];
+        if (cursor) {
+          setItems((current) => {
+            const seen = new Set(current.map((r) => r.id));
+            return [...current, ...page.filter((r) => !seen.has(r.id))];
+          });
+        } else {
+          setItems(page);
+        }
+        if (data.counts) setCounts(data.counts);
+        if (!cursor) setAutomationStartsAt(data.automationStartsAt ?? null);
+        setNextCursor(data.nextCursor ?? null);
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        const errorMessage = e instanceof Error ? e.message : "Unexpected error";
+        setError(errorMessage);
+      } finally {
+        if (listRequestRef.current === controller) {
+          listRequestRef.current = null;
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
-      if (data?.code === "NO_BUSINESS") {
-        router.push("/onboarding");
-        router.refresh();
-        return;
-      }
-      if (!res.ok) throw new Error(data?.error || "Failed to load reviews");
-      setItems(data.reviews ?? []);
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "Unexpected error";
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [router, status]
+  );
+
+  const loadMore = useCallback(() => {
+    if (!nextCursor || loading || loadingMore || error) return;
+    void loadPage(nextCursor);
+  }, [error, loadPage, loading, loadingMore, nextCursor]);
 
   async function openReview(id: string) {
     setOpenId(id);
@@ -129,11 +200,32 @@ export default function ReviewsPage() {
       }
       if (!res.ok) throw new Error(data?.error || "Failed to load review");
       setDetail(data.review);
+      return data.review as Review;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unexpected error";
       setError(errorMessage);
     } finally {
       setDetailLoading(false);
+    }
+    return null;
+  }
+
+  // Applies a review's new state to the loaded list without refetching every
+  // page: it's dropped if it no longer matches the active filter.
+  function applyUpdatedReview(previous: Review, updated: Review) {
+    const previousBucket = getFilterBucket(previous);
+    const updatedBucket = getFilterBucket(updated);
+    setItems((current) =>
+      status !== "all" && updatedBucket !== status
+        ? current.filter((r) => r.id !== updated.id)
+        : current.map((r) => (r.id === updated.id ? updated : r))
+    );
+    if (previousBucket !== updatedBucket) {
+      setCounts((current) => ({
+        ...current,
+        [previousBucket]: Math.max(0, current[previousBucket] - 1),
+        [updatedBucket]: current[updatedBucket] + 1,
+      }));
     }
   }
 
@@ -160,7 +252,8 @@ export default function ReviewsPage() {
       }
       if (!res.ok) throw new Error(data?.error || "Failed to publish");
       showToast({ type: "success", message: "Reply published successfully." });
-      await Promise.all([load(), openReview(detail.id)]);
+      const updated = await openReview(detail.id);
+      if (updated) applyUpdatedReview(detail, updated);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unexpected error";
       setError(errorMessage);
@@ -185,9 +278,24 @@ export default function ReviewsPage() {
   }, [openId]);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+    setItems([]);
+    setNextCursor(null);
+    void loadPage(null);
+    return () => listRequestRef.current?.abort();
+  }, [loadPage]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !nextCursor) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMore();
+      },
+      { rootMargin: "400px 0px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore, nextCursor]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -204,7 +312,7 @@ export default function ReviewsPage() {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          {(["pending", "responded", "failed", "skipped", "all"] as const).map((s) => (
+          {filterOptions.map((s) => (
             <button
               key={s}
               className={`rounded-full border px-4 py-2 transition-all ${
@@ -215,16 +323,30 @@ export default function ReviewsPage() {
               onClick={() => setStatus(s)}
             >
               <span className="text-sm font-medium">
-                {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}{" "}
-                {s !== "all" && (
-                  <span className={`ml-1 ${status === s ? "text-blue-100" : "text-gray-400"}`}>
-                    {counts[s] ?? 0}
-                  </span>
-                )}
+                {filterLabels[s]}{" "}
+                <span className={`ml-1 ${status === s ? "text-blue-100" : "text-gray-400"}`}>
+                  {counts[s] ?? 0}
+                </span>
               </span>
             </button>
           ))}
         </div>
+
+        {automationStartsAt && counts.before_automation > 0 ? (
+          <InlineNotification tone="info" className="mt-6">
+            Automatic replies started on <strong>{formatDate(automationStartsAt)}</strong>, when you connected
+            Google. {counts.before_automation === 1 ? "1 review" : `${counts.before_automation} reviews`} posted
+            before that date won&apos;t be answered automatically. You&apos;ll find them under{" "}
+            <button
+              type="button"
+              className="font-semibold underline underline-offset-2 hover:no-underline"
+              onClick={() => setStatus("before_automation")}
+            >
+              Before automation
+            </button>
+            .
+          </InlineNotification>
+        ) : null}
 
         {error && (
           <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
@@ -284,7 +406,7 @@ export default function ReviewsPage() {
                       {r.authorName ?? "—"}
                     </Text>
                     <Text variant="body" className="text-xs text-gray-500">
-                      {formatDateTime(r.createdAt)}
+                      {formatDateTime(r.createdAtGoogle ?? r.createdAt)}
                     </Text>
                   </div>
 
@@ -304,6 +426,32 @@ export default function ReviewsPage() {
               ))}
             </div>
           )}
+
+          {!loading && items.length > 0 ? (
+            <div className="border-t border-gray-100 px-6 py-4 text-center">
+              {nextCursor ? (
+                <>
+                  <div ref={sentinelRef} aria-hidden="true" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="!w-auto px-5"
+                    isLoading={loadingMore}
+                    onClick={() => {
+                      setError(null);
+                      void loadPage(nextCursor);
+                    }}
+                  >
+                    {loadingMore ? "Loading..." : "Load more"}
+                  </Button>
+                </>
+              ) : (
+                <Text variant="body" className="text-sm text-gray-500">
+                  {items.length === 1 ? "That's the only review." : `That's all ${items.length} reviews.`}
+                </Text>
+              )}
+            </div>
+          ) : null}
         </div>
 
         {/* Modal simple */}
@@ -350,6 +498,12 @@ export default function ReviewsPage() {
                           <Text variant="label" className="inline mr-2">Author:</Text>
                           <Text variant="body" className="inline text-gray-900">{detail.authorName ?? "—"}</Text>
                         </div>
+                        {detail.beforeAutomation && automationStartsAt ? (
+                          <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-600">
+                            This review was posted before automatic replies started on{" "}
+                            {formatDate(automationStartsAt)}, so it won&apos;t be answered automatically.
+                          </div>
+                        ) : null}
                         <div>
                           <Text variant="label" className="block mb-1">Comment:</Text>
                           <Text variant="body" className="text-gray-700">{detail.comment ?? "—"}</Text>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 import { replyToGoogleReview } from "@/lib/reviews/providers/google";
+import { isBeforeAutomation } from "@/lib/reviews/automationWindow";
 
 export async function GET(
   _: Request,
@@ -29,9 +30,10 @@ export async function GET(
     ...review,
     responses: review.response ? [review.response] : [],
     response: undefined,
+    beforeAutomation: isBeforeAutomation(review, business.connectedAt),
   };
 
-  return NextResponse.json({ review: shaped });
+  return NextResponse.json({ review: shaped, automationStartsAt: business.connectedAt?.toISOString() ?? null });
 }
 
 export async function POST(

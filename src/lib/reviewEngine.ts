@@ -3,6 +3,7 @@ import { startJob, finishJobSuccess, finishJobFailed } from "@/lib/jobs";
 import { JobType, Prisma } from "@prisma/client";
 import { replyToGoogleReview } from "@/lib/reviews/providers/google";
 import { canUseAI, getAutoResponderGate, getBusinessPlan } from "@/lib/plan";
+import { automatedReviewsWhere } from "@/lib/reviews/automationWindow";
 
 function applyVariables(template: string, vars: Record<string, string>) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
@@ -154,14 +155,11 @@ export async function autoRespondBusiness(businessId: string) {
     });
 
     // ✅ blocks historical reviews
-    const where: Prisma.ReviewWhereInput = { businessId, status: "pending" };
-
-    if (biz.connectedAt) {
-      where.OR = [
-        { createdAtGoogle: { gte: biz.connectedAt } },
-        { createdAtGoogle: null }, // allows mocks
-      ];
-    }
+    const where: Prisma.ReviewWhereInput = {
+      businessId,
+      status: "pending",
+      ...automatedReviewsWhere(biz.connectedAt),
+    };
 
     const pendingReviews = await prisma.review.findMany({
       where,

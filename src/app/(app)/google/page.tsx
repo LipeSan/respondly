@@ -398,6 +398,8 @@ export default function GoogleSetupPage() {
                                 <Text variant="subtitle" className="font-bold text-gray-900">Save configuration</Text>
                                 <Text variant="body" className="mt-1 text-gray-600">
                                     This defines which location will be used to sync reviews.
+                                    Automatic replies apply to reviews posted from the first sync onwards;
+                                    older reviews stay visible but won&apos;t be answered automatically.
                                 </Text>
                             </div>
                         </div>

@@ -165,6 +165,7 @@ model Review {
   @@unique([businessId, source, externalId]) // ✅ ADD (dedupe)
   @@index([businessId, status]) // ✅ ADD (fila)
   @@index([businessId, createdAtGoogle]) // ✅ ADD (ordenar pelo google)
+  @@index([businessId, status, createdAtGoogle]) // lista paginada filtrada por status
 }
 
 model ReviewResponse {

@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Tailwind v4 resets buttons to the default cursor; restore the pointer app-wide.
+   Kept in the base layer so utilities like `disabled:cursor-not-allowed` still win. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
