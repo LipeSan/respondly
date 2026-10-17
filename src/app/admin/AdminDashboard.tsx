@@ -9,9 +9,33 @@ import {
   type AdminCustomerBusinessRow,
   type AdminCustomerRole,
 } from "@/app/admin/AdminCustomerCard";
+import { AdminSendEmailModal, type AdminEmailRecipient } from "@/app/admin/AdminSendEmailModal";
 import { InlineNotification } from "@/components/InlineNotification";
 import { Text } from "@/components/Text";
 import { formatDate, formatDateTime } from "@/lib/date";
+import { getOnboardingStage, onboardingStageLabels } from "@/lib/email/adminEmailPresets";
+
+type IncompleteUserRow = {
+  id: string;
+  name: string | null;
+  email: string;
+  createdAt: string;
+  lastEmailSentAt: string | null;
+};
+
+function getBusinessStage(business: AdminCustomerBusinessRow) {
+  return getOnboardingStage({
+    hasBusiness: true,
+    hasGoogle: Boolean(business.google),
+    hasSubscription: Boolean(business.subscription),
+  });
+}
+
+function formatDaysSince(value: string) {
+  const days = Math.floor((Date.now() - new Date(value).getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "today";
+  return days === 1 ? "1 day ago" : `${days} days ago`;
+}
 
 type OverviewResponse = {
   admin: {
@@ -28,6 +52,7 @@ type OverviewResponse = {
   };
   impersonatedBusinessId: string | null;
   businesses: AdminCustomerBusinessRow[];
+  incompleteUsers: IncompleteUserRow[];
   recentAuditLogs: Array<{
     id: string;
     action: string;
@@ -71,7 +96,7 @@ type TrialInvite = {
 
 export function AdminDashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"customers" | "trial-invites" | "audit">("customers");
+  const [activeTab, setActiveTab] = useState<"customers" | "incomplete" | "trial-invites" | "audit">("customers");
   const [query, setQuery] = useState("");
   const [draftQuery, setDraftQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -81,6 +106,7 @@ export function AdminDashboard() {
   const [data, setData] = useState<OverviewResponse | null>(null);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, AdminCustomerRole>>({});
   const [openCustomerActionsId, setOpenCustomerActionsId] = useState<string | null>(null);
+  const [emailRecipient, setEmailRecipient] = useState<AdminEmailRecipient | null>(null);
   const [invites, setInvites] = useState<TrialInvite[]>([]);
   const [invitesLoading, setInvitesLoading] = useState(false);
   const [inviteForm, setInviteForm] = useState({
@@ -177,6 +203,9 @@ export function AdminDashboard() {
   }, [activeTab]);
 
   const businesses = data?.businesses ?? [];
+  const incompleteUsers = data?.incompleteUsers ?? [];
+  const incompleteBusinesses = businesses.filter((business) => getBusinessStage(business) !== "complete");
+  const canSendEmail = data?.admin.accessLevel === "admin";
   const summaryCards = useMemo(
     () =>
       data
@@ -254,6 +283,36 @@ export function AdminDashboard() {
     } finally {
       setActionLoading(null);
     }
+  }
+
+  function openEmailForBusiness(business: AdminCustomerBusinessRow) {
+    setOpenCustomerActionsId(null);
+    setEmailRecipient({
+      userId: business.user.id,
+      name: business.user.name,
+      email: business.user.email,
+      stage: getBusinessStage(business),
+    });
+  }
+
+  function onEmailSent(recipient: AdminEmailRecipient, sentAt: string) {
+    setEmailRecipient(null);
+    setNotice(`Email sent to ${recipient.email}.`);
+    setData((current) =>
+      current
+        ? {
+            ...current,
+            businesses: current.businesses.map((business) =>
+              business.user.id === recipient.userId
+                ? { ...business, user: { ...business.user, lastEmailSentAt: sentAt } }
+                : business
+            ),
+            incompleteUsers: current.incompleteUsers.map((user) =>
+              user.id === recipient.userId ? { ...user, lastEmailSentAt: sentAt } : user
+            ),
+          }
+        : current
+    );
   }
 
   function onSearchSubmit(e: React.FormEvent) {
@@ -385,6 +444,18 @@ export function AdminDashboard() {
         </button>
         <button
           type="button"
+          onClick={() => setActiveTab("incomplete")}
+          className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+            activeTab === "incomplete"
+              ? "bg-gray-900 text-white"
+              : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          Incomplete Signups
+          {data ? ` (${incompleteUsers.length + incompleteBusinesses.length})` : ""}
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab("trial-invites")}
           className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
             activeTab === "trial-invites"
@@ -480,12 +551,96 @@ export function AdminDashboard() {
                 }
                 onCloseActions={() => setOpenCustomerActionsId(null)}
                 onOpenBusiness={(destination) => openBusiness(business.id, destination)}
+                onSendEmail={() => openEmailForBusiness(business)}
               />
             );
           })
         )}
       </div>
         </>
+      ) : null}
+
+      {activeTab === "incomplete" ? (
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <Text variant="h2" className="text-xl">
+              Incomplete Signups
+            </Text>
+            <Text variant="body" className="mt-1 text-sm text-gray-600">
+              Customers who created an account but haven&apos;t finished setup. Send a follow-up email to help them
+              get to the next step.
+            </Text>
+          </div>
+
+          <div className="space-y-3">
+            {loading ? (
+              <div className="text-sm text-gray-600">Loading admin data...</div>
+            ) : incompleteUsers.length === 0 && incompleteBusinesses.length === 0 ? (
+              <div className="text-sm text-gray-600">Everyone has finished setup.</div>
+            ) : (
+              [
+                ...incompleteUsers.map((user) => ({
+                  key: `user:${user.id}`,
+                  title: user.name || user.email,
+                  subtitle: user.email,
+                  createdAt: user.createdAt,
+                  lastEmailSentAt: user.lastEmailSentAt,
+                  recipient: {
+                    userId: user.id,
+                    name: user.name,
+                    email: user.email,
+                    stage: "no_business" as const,
+                  },
+                })),
+                ...incompleteBusinesses.map((business) => ({
+                  key: `business:${business.id}`,
+                  title: business.name,
+                  subtitle: `${business.user.name || "Unnamed user"} (${business.user.email})`,
+                  createdAt: business.createdAt,
+                  lastEmailSentAt: business.user.lastEmailSentAt,
+                  recipient: {
+                    userId: business.user.id,
+                    name: business.user.name,
+                    email: business.user.email,
+                    stage: getBusinessStage(business),
+                  },
+                })),
+              ].map((row) => (
+                <div key={row.key} className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Text variant="body" className="text-base font-semibold text-gray-900">
+                          {row.title}
+                        </Text>
+                        <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                          {onboardingStageLabels[row.recipient.stage]}
+                        </span>
+                      </div>
+                      <Text variant="body" className="mt-1 break-all text-sm text-gray-600">
+                        {row.subtitle}
+                      </Text>
+                      <Text variant="body" className="mt-1 text-xs text-gray-500">
+                        Signed up {formatDaysSince(row.createdAt)} · Last email:{" "}
+                        {row.lastEmailSentAt ? formatDaysSince(row.lastEmailSentAt) : "never"}
+                      </Text>
+                    </div>
+                    {canSendEmail ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="!w-auto shrink-0 px-4 py-2"
+                        onClick={() => setEmailRecipient(row.recipient)}
+                      >
+                        Send email
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       ) : null}
 
       {activeTab === "trial-invites" ? (
@@ -647,6 +802,11 @@ export function AdminDashboard() {
           </div>
         </div>
       ) : null}
+      <AdminSendEmailModal
+        recipient={emailRecipient}
+        onClose={() => setEmailRecipient(null)}
+        onSent={onEmailSent}
+      />
     </div>
   );
 }

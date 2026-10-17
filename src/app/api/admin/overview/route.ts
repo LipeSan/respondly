@@ -119,6 +119,41 @@ export async function GET(req: Request) {
       }),
     ]);
 
+  // Users who signed up but never created a business don't show up in the
+  // business list above, so they're fetched separately for follow-up.
+  const incompleteUsers = await prisma.user.findMany({
+    where: {
+      role: "user",
+      businesses: { none: {} },
+      ...(q
+        ? {
+            OR: [
+              { email: { contains: q, mode: "insensitive" as const } },
+              { name: { contains: q, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true, name: true, email: true, createdAt: true },
+  });
+
+  const emailLogs = await prisma.adminAuditLog.findMany({
+    where: {
+      action: "user_email_sent",
+      targetUserId: {
+        in: [...businesses.map((business) => business.user.id), ...incompleteUsers.map((user) => user.id)],
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    distinct: ["targetUserId"],
+    select: { targetUserId: true, createdAt: true },
+  });
+  const lastEmailSentAtByUserId = new Map(
+    emailLogs.map((log) => [log.targetUserId, log.createdAt.toISOString()])
+  );
+
   const impersonatedBusinessId = await getAdminImpersonatedBusinessId();
 
   return NextResponse.json({
@@ -141,6 +176,7 @@ export async function GET(req: Request) {
       user: {
         ...business.user,
         createdAt: business.user.createdAt.toISOString(),
+        lastEmailSentAt: lastEmailSentAtByUserId.get(business.user.id) ?? null,
       },
       subscription: business.subscription
         ? {
@@ -163,6 +199,11 @@ export async function GET(req: Request) {
         ...item,
         createdAt: item.createdAt.toISOString(),
       })),
+    })),
+    incompleteUsers: incompleteUsers.map((user) => ({
+      ...user,
+      createdAt: user.createdAt.toISOString(),
+      lastEmailSentAt: lastEmailSentAtByUserId.get(user.id) ?? null,
     })),
     recentAuditLogs: recentAuditLogs.map((log) => ({
       ...log,

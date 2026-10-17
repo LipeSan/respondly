@@ -5,17 +5,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { InlineNotification } from "@/components/InlineNotification";
+import { AdminSendEmailModal, type AdminEmailRecipient } from "@/app/admin/AdminSendEmailModal";
 
 export function AdminBusinessActions({
   businessId,
   isCurrent,
+  emailRecipient,
 }: {
   businessId: string;
   isCurrent: boolean;
+  emailRecipient: AdminEmailRecipient | null;
 }) {
   const router = useRouter();
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [isEmailOpen, setIsEmailOpen] = useState(false);
 
   async function openBusiness(destination: string) {
     setLoadingKey(destination);
@@ -93,8 +98,31 @@ export function AdminBusinessActions({
         >
           Reviews
         </Button>
+        {emailRecipient ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="!w-auto px-5"
+            onClick={() => {
+              setNotice(null);
+              setIsEmailOpen(true);
+            }}
+          >
+            Send email
+          </Button>
+        ) : null}
       </div>
       {error ? <InlineNotification tone="error">{error}</InlineNotification> : null}
+      {notice ? <InlineNotification tone="success">{notice}</InlineNotification> : null}
+      <AdminSendEmailModal
+        recipient={isEmailOpen ? emailRecipient : null}
+        onClose={() => setIsEmailOpen(false)}
+        onSent={(recipient) => {
+          setIsEmailOpen(false);
+          setNotice(`Email sent to ${recipient.email}.`);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Text } from "@/components/Text";
 import { prisma } from "@/lib/db";
 import { getCurrentAdminUser, getAdminImpersonatedBusinessId } from "@/lib/admin";
 import { formatDateTime } from "@/lib/date";
+import { getOnboardingStage } from "@/lib/email/adminEmailPresets";
 import { AdminBusinessActions } from "./AdminBusinessActions";
 
 function formatMoney(amount?: number | null, currency?: string | null) {
@@ -177,7 +178,24 @@ export default async function AdminBusinessDetailPage({
             Review customer account health, billing state, automation setup, and jump into the client workspace when you need to make changes.
           </Text>
         </div>
-        <AdminBusinessActions businessId={business.id} isCurrent={isCurrent} />
+        <AdminBusinessActions
+          businessId={business.id}
+          isCurrent={isCurrent}
+          emailRecipient={
+            adminContext.accessLevel === "admin"
+              ? {
+                  userId: business.user.id,
+                  name: business.user.name,
+                  email: business.user.email,
+                  stage: getOnboardingStage({
+                    hasBusiness: true,
+                    hasGoogle: Boolean(business.google),
+                    hasSubscription: Boolean(business.subscription),
+                  }),
+                }
+              : null
+          }
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

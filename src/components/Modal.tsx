@@ -8,10 +8,16 @@ type ModalProps = {
   title?: string;
   children: ReactNode;
   footer?: ReactNode;
+  size?: "md" | "lg";
   onClose(): void;
 };
 
-export function Modal({ open, title, children, footer, onClose }: ModalProps) {
+const sizeClasses = {
+  md: "max-w-lg",
+  lg: "max-w-4xl",
+};
+
+export function Modal({ open, title, children, footer, size = "md", onClose }: ModalProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -31,7 +37,7 @@ export function Modal({ open, title, children, footer, onClose }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-100"
+        className={`w-full ${sizeClasses[size]} rounded-2xl bg-white shadow-2xl border border-gray-100`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">

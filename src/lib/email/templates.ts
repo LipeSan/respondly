@@ -242,6 +242,37 @@ export function buildProductInfoEmail(args: { name?: string | null; registerUrl:
   return { subject, html, text };
 }
 
+export function buildAdminMessageEmail(args: {
+  subject: string;
+  message: string;
+  origin?: string;
+  cta?: { label: string; url: string } | null;
+}): EmailContent {
+  const subject = args.subject.trim();
+  const message = args.message.trim();
+  const paragraphs = message.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+
+  const bodyHtml = paragraphs
+    .map(
+      (block, index) =>
+        `<p style="margin: ${index === 0 ? "16px" : "12px"} 0 0;">${escapeHtml(block).replaceAll("\n", "<br />")}</p>`
+    )
+    .join("");
+  const text = args.cta ? `${message}\n\n${args.cta.label}: ${args.cta.url}` : message;
+
+  const html = renderEmailLayout({
+    subject,
+    title: subject,
+    preheader: paragraphs[1] ?? paragraphs[0] ?? subject,
+    origin: args.origin,
+    bodyHtml,
+    cta: args.cta ?? undefined,
+    footerText: "You're receiving this because you have a Respondly account. Just reply to this email if you need help.",
+  });
+
+  return { subject, html, text };
+}
+
 function safeOriginFromUrl(url: string) {
   try {
     return new URL(url).origin;
