@@ -63,11 +63,7 @@ export async function POST(req: Request) {
   });
 
   try {
-    await sendEmail({
-      to: targetUser.email,
-      ...content,
-      replyTo: process.env.EMAIL_REPLY_TO || undefined,
-    });
+    await sendEmail({ to: targetUser.email, ...content });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[admin:email] send failed", { userId: targetUser.id, error: errorMessage });
