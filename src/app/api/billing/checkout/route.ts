@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
-import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib/currentBusiness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -202,10 +202,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { business, user } = await getCurrentUserAndBusiness();
+    const ctx = await getCurrentUserAndBusiness();
+    const { business, user } = ctx;
     if (!business || !user) {
       console.warn("[billing:checkout] Not authenticated");
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+    if (isReadOnlySupportImpersonation(ctx)) {
+      return NextResponse.json(
+        { error: "Support accounts cannot start a checkout while impersonating. Ask an admin." },
+        { status: 403 },
+      );
     }
 
     const body = await req.json().catch(() => ({}));

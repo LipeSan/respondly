@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib/currentBusiness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
       { status: 400 },
+    );
+  }
+  if (isReadOnlySupportImpersonation(ctx)) {
+    return NextResponse.json(
+      { error: "Support accounts cannot disconnect Google while impersonating. Ask an admin." },
+      { status: 403 },
     );
   }
 

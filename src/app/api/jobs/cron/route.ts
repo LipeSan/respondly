@@ -4,6 +4,8 @@ import { autoRespondBusiness } from "@/lib/reviewEngine";
 import { syncReviewsForBusiness } from "@/lib/reviews/sync";
 import { JobType } from "@prisma/client";
 import { isJobRunningRecently } from "@/lib/jobLock";
+import { blockedBillingStatuses, isActiveSubscriptionStatus } from "@/lib/plan";
+import crypto from "crypto";
 
 function getErrorMessage(e: unknown) {
   if (e instanceof Error) return e.message;
@@ -15,20 +17,12 @@ function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-function isActiveSubscriptionStatus(status: string | null | undefined) {
-  if (!status) return false;
-  return status === "active" || status === "trialing";
+function timingSafeEqual(a: string, b: string) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 }
-
-const blockedBillingStatuses = new Set([
-  "payment_failed",
-  "refunded",
-  "needs_response",
-  "warning_needs_response",
-  "under_review",
-  "warning_under_review",
-  "lost",
-]);
 
 async function getDebugReviews(businessId: string) {
   const reviews = await prisma.review.findMany({
@@ -70,7 +64,7 @@ async function handle(req: Request) {
   if (!isVercelCron) {
     const secret = process.env.CRON_SECRET;
     const provided = header ?? query ?? "";
-    if (!secret || provided !== secret) return unauthorized();
+    if (!secret || !provided || !timingSafeEqual(provided, secret)) return unauthorized();
   }
 
   const take = Math.min(Number(url.searchParams.get("take") ?? 50), 200);

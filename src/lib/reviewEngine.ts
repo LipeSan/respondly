@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { startJob, finishJobSuccess, finishJobFailed } from "@/lib/jobs";
 import { JobType, Prisma } from "@prisma/client";
 import { replyToGoogleReview } from "@/lib/reviews/providers/google";
-import { canUseAI, getBusinessPlan } from "@/lib/plan";
+import { canUseAI, getAutoResponderGate, getBusinessPlan } from "@/lib/plan";
 
 function applyVariables(template: string, vars: Record<string, string>) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
@@ -131,6 +131,19 @@ export async function autoRespondBusiness(businessId: string) {
         skipped: 0,
         totalPending: 0,
         reason: "disabled" as const,
+      };
+    }
+
+    // Enforced here (not just by callers like the cron route) so any entry
+    // point into the engine — including manual/debug triggers — respects
+    // billing state instead of running the paid automation for free.
+    const gate = await getAutoResponderGate(businessId);
+    if (!gate.allowed) {
+      return {
+        responded: 0,
+        skipped: 0,
+        totalPending: 0,
+        reason: gate.reason,
       };
     }
 

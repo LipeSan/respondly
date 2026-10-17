@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
-import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib/currentBusiness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     console.warn("[billing:cancel] Not authenticated");
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+  if (isReadOnlySupportImpersonation(ctx)) {
+    return NextResponse.json(
+      { error: "Support accounts cannot cancel a subscription while impersonating. Ask an admin." },
+      { status: 403 },
+    );
   }
 
   const sub = await prisma.subscription.findUnique({
