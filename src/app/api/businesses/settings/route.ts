@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 import { Prisma } from "@prisma/client";
 import { canUseAI, getBusinessPlan } from "@/lib/plan";
+import { recordAdminAudit } from "@/lib/admin";
 
 export async function GET() {
   const { business } = await getCurrentUserAndBusiness();
@@ -27,7 +28,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const { business } = await getCurrentUserAndBusiness();
+  const { business, user, isImpersonating } = await getCurrentUserAndBusiness();
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -68,6 +69,18 @@ export async function PUT(req: Request) {
     data,
     select: { autoResponderEnabled: true, aiSettings: true },
   });
+
+  // Auto-replies are the paid feature; log every on/off switch so a business
+  // that silently isn't being automated can be traced back to who changed it.
+  if (user && updated.autoResponderEnabled !== business.autoResponderEnabled) {
+    await recordAdminAudit({
+      actorUserId: user.id,
+      action: updated.autoResponderEnabled ? "auto_responder_enabled" : "auto_responder_disabled",
+      targetUserId: business.userId,
+      targetBusinessId: business.id,
+      metadata: { viaImpersonation: isImpersonating },
+    });
+  }
 
   return NextResponse.json(updated);
 }

@@ -57,15 +57,16 @@ async function getDebugReviews(businessId: string) {
 async function handle(req: Request) {
   const url = new URL(req.url);
   const debug = url.searchParams.get("debug") === "1";
-  const isVercelCron = req.headers.get("x-vercel-cron") === "1";
+  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` when CRON_SECRET is
+  // set on the project. `x-cron-secret` / `?secret=` remain for manual runs.
+  // (The old `x-vercel-cron` header bypass was dropped: any client can send it.)
+  const bearer = req.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] ?? null;
   const header = req.headers.get("x-cron-secret");
   const query = url.searchParams.get("secret");
 
-  if (!isVercelCron) {
-    const secret = process.env.CRON_SECRET;
-    const provided = header ?? query ?? "";
-    if (!secret || !provided || !timingSafeEqual(provided, secret)) return unauthorized();
-  }
+  const secret = process.env.CRON_SECRET;
+  const provided = bearer ?? header ?? query ?? "";
+  if (!secret || !provided || !timingSafeEqual(provided, secret)) return unauthorized();
 
   const take = Math.min(Number(url.searchParams.get("take") ?? 50), 200);
 
@@ -151,37 +152,12 @@ async function handle(req: Request) {
     const syncRunning = await isJobRunningRecently(b.id, JobType.sync_reviews, 120);
     
     if (!syncRunning) {
-      const job = await prisma.jobRun.create({
-        data: {
-          businessId: b.id,
-          type: JobType.sync_reviews,
-          status: "running",
-        },
-      });
-
       try {
         const source = b.googleLocationId ? "google" : "mock";
         syncResult = await syncReviewsForBusiness(b.id, { source });
         totalSynced += syncResult?.imported ?? 0;
-
-        await prisma.jobRun.update({
-          where: { id: job.id },
-          data: {
-            status: "success",
-            finishedAt: new Date(),
-            processed: (syncResult?.imported ?? 0) + (syncResult?.updated ?? 0),
-          },
-        });
       } catch (e: unknown) {
         const msg = getErrorMessage(e);
-        await prisma.jobRun.update({
-          where: { id: job.id },
-          data: {
-            status: "failed",
-            finishedAt: new Date(),
-            error: msg || "sync_failed",
-          },
-        });
 
         results.push({
           businessId: b.id,
@@ -225,28 +201,10 @@ async function handle(req: Request) {
     const autoRunning = await isJobRunningRecently(b.id, JobType.auto_responder, 120);
 
     if (!autoRunning) {
-        const job = await prisma.jobRun.create({
-            data: {
-                businessId: b.id,
-                type: JobType.auto_responder,
-                status: "running",
-            }
-        });
-
         try {
             const r = await autoRespondBusiness(b.id);
             totalResponded += r.responded ?? 0;
             totalSkipped += r.skipped ?? 0;
-
-            await prisma.jobRun.update({
-                where: { id: job.id },
-                data: {
-                    status: "success",
-                    finishedAt: new Date(),
-                    responded: r.responded,
-                    skipped: r.skipped,
-                }
-            });
 
             results.push({
                 businessId: b.id,
@@ -267,14 +225,6 @@ async function handle(req: Request) {
             });
         } catch (e: unknown) {
             const msg = getErrorMessage(e);
-            await prisma.jobRun.update({
-                where: { id: job.id },
-                data: {
-                    status: "failed",
-                    finishedAt: new Date(),
-                    error: msg || "auto_failed",
-                }
-            });
 
             results.push({
                 businessId: b.id,

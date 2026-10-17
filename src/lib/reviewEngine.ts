@@ -127,6 +127,7 @@ export async function autoRespondBusiness(businessId: string) {
     });
 
     if (!biz?.autoResponderEnabled) {
+      await finishJobSuccess(job.id, {});
       return {
         responded: 0,
         skipped: 0,
@@ -140,6 +141,7 @@ export async function autoRespondBusiness(businessId: string) {
     // billing state instead of running the paid automation for free.
     const gate = await getAutoResponderGate(businessId);
     if (!gate.allowed) {
+      await finishJobSuccess(job.id, {});
       return {
         responded: 0,
         skipped: 0,

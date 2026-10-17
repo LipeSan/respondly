@@ -11,7 +11,6 @@ import Pricing from "../components/Landing/Pricing";
 import FAQ from "../components/Landing/FAQ";
 import FinalCTA from "../components/Landing/FinalCTA";
 import Footer from "../components/Landing/Footer";
-import { Analytics } from "@vercel/analytics/react";
 import {
   DEFAULT_KEYWORDS,
   DEFAULT_OG_IMAGE,
@@ -74,7 +73,6 @@ export default function LandingPage() {
         className="relative min-h-screen bg-black text-white overflow-x-hidden"
       >
         <Header />
-        <Analytics />
         <Hero />
         <Problem />
         <MockupShowcase />

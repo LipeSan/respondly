@@ -284,6 +284,19 @@ export default function ReviewsPage() {
     return () => listRequestRef.current?.abort();
   }, [loadPage]);
 
+  // Deep links from the dashboard: ?status=<filter> preselects a tab and
+  // ?open=<reviewId> opens that review.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialStatus = params.get("status");
+    if (initialStatus && (filterOptions as string[]).includes(initialStatus)) {
+      setStatus(initialStatus as StatusFilter);
+    }
+    const reviewId = params.get("open");
+    if (reviewId) void openReview(reviewId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !nextCursor) return;

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { getAutoResponderGate } from "@/lib/plan";
+import { automatedReviewsWhere, isBeforeAutomation } from "@/lib/reviews/automationWindow";
 
-type ReviewStatus = "pending" | "responded" | "failed" | "skipped";
-type ResponseMethod = "template" | "ai" | "manual";
+const DAY_MS = 24 * 60 * 60 * 1000;
+const LIST_LIMIT = 5;
 
 function clampRangeDays(v: unknown) {
   const n = Number(v);
@@ -11,18 +13,22 @@ function clampRangeDays(v: unknown) {
   return 30;
 }
 
-function toDayKey(d: Date) {
-  return d.toISOString().slice(0, 10);
+function reviewDate(r: { createdAtGoogle: Date | null; createdAt: Date }) {
+  return r.createdAtGoogle ?? r.createdAt;
 }
 
-function startOfDayUtc(d: Date) {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+function average(values: number[]) {
+  return values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
 }
 
-function addDaysUtc(d: Date, days: number) {
-  const out = new Date(d);
-  out.setUTCDate(out.getUTCDate() + days);
-  return out;
+/** Rolling buckets ending now: daily for 7 days, weekly otherwise (local businesses get few reviews per day). */
+function buildBuckets(start: Date, end: Date, rangeDays: number) {
+  const sizeMs = (rangeDays <= 7 ? 1 : 7) * DAY_MS;
+  const buckets: Array<{ start: Date; end: Date }> = [];
+  for (let bucketEnd = end.getTime(); bucketEnd > start.getTime(); bucketEnd -= sizeMs) {
+    buckets.unshift({ start: new Date(Math.max(bucketEnd - sizeMs, start.getTime())), end: new Date(bucketEnd) });
+  }
+  return { buckets, bucket: rangeDays <= 7 ? ("day" as const) : ("week" as const) };
 }
 
 export async function GET(req: Request) {
@@ -34,220 +40,170 @@ export async function GET(req: Request) {
     );
   }
 
-  const subscription = await prisma.subscription.findUnique({
-    where: { businessId: business.id },
-    select: {
-      plan: true,
-      status: true,
-      createdAt: true,
-      currentPeriodEnd: true,
-      cancelAtPeriodEnd: true,
-      cancelAt: true,
-    },
-  });
-
   const url = new URL(req.url);
   const rangeDays = clampRangeDays(url.searchParams.get("range"));
+  const now = new Date();
+  const start = new Date(now.getTime() - rangeDays * DAY_MS);
+  const previousStart = new Date(start.getTime() - rangeDays * DAY_MS);
+  const connectedAt = business.connectedAt;
+  const automatedWhere = automatedReviewsWhere(connectedAt);
 
-  const today = startOfDayUtc(new Date());
-  const start = addDaysUtc(today, -(rangeDays - 1));
-
-  const reviews = await prisma.review.findMany({
-    where: {
-      businessId: business.id,
-      OR: [{ createdAt: { gte: start } }, { createdAtGoogle: { gte: start } }],
-    },
-    select: {
-      id: true,
-      rating: true,
-      status: true,
-      authorName: true,
-      comment: true,
-      createdAt: true,
-      createdAtGoogle: true,
-      response: {
-        select: {
-          method: true,
-          createdAt: true,
-          sentAt: true,
-        },
+  const [
+    google,
+    gate,
+    lastSync,
+    rangeReviews,
+    sentResponses,
+    ratingGroups,
+    draftsCount,
+    drafts,
+    lowRatingCount,
+    lowRating,
+    failedCount,
+    recentReviews,
+  ] = await Promise.all([
+    prisma.googleConnection.findUnique({ where: { businessId: business.id }, select: { id: true } }),
+    getAutoResponderGate(business.id),
+    prisma.jobRun.findFirst({
+      where: { businessId: business.id, type: "sync_reviews", status: { in: ["success", "failed"] } },
+      orderBy: { startedAt: "desc" },
+      select: { status: true, finishedAt: true, startedAt: true },
+    }),
+    // Current + previous period, bucketed in memory (a local business has few reviews per period).
+    prisma.review.findMany({
+      where: {
+        businessId: business.id,
+        OR: [
+          { createdAtGoogle: { gte: previousStart } },
+          { createdAtGoogle: null, createdAt: { gte: previousStart } },
+        ],
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 5000,
+      select: { rating: true, status: true, createdAt: true, createdAtGoogle: true },
+    }),
+    prisma.reviewResponse.findMany({
+      where: { review: { businessId: business.id }, sentAt: { gte: previousStart } },
+      select: { sentAt: true, review: { select: { createdAt: true, createdAtGoogle: true } } },
+    }),
+    prisma.review.groupBy({
+      by: ["rating"],
+      where: { businessId: business.id },
+      _count: { _all: true },
+    }),
+    prisma.review.count({
+      where: { businessId: business.id, status: "pending", response: { is: { sentAt: null } } },
+    }),
+    prisma.review.findMany({
+      where: { businessId: business.id, status: "pending", response: { is: { sentAt: null } } },
+      orderBy: [{ createdAtGoogle: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+      take: LIST_LIMIT,
+      select: { id: true, rating: true, authorName: true, comment: true, createdAt: true, createdAtGoogle: true },
+    }),
+    // Only reviews automation is responsible for; older ones are shown on the Reviews page.
+    prisma.review.count({
+      where: { AND: [{ businessId: business.id, status: { in: ["pending", "failed"] }, rating: { lte: 2 } }, automatedWhere] },
+    }),
+    prisma.review.findMany({
+      where: { AND: [{ businessId: business.id, status: { in: ["pending", "failed"] }, rating: { lte: 2 } }, automatedWhere] },
+      orderBy: [{ createdAtGoogle: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+      take: LIST_LIMIT,
+      select: { id: true, rating: true, authorName: true, comment: true, status: true, createdAt: true, createdAtGoogle: true },
+    }),
+    prisma.review.count({ where: { businessId: business.id, status: "failed" } }),
+    prisma.review.findMany({
+      where: { businessId: business.id },
+      orderBy: [{ createdAtGoogle: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+      take: LIST_LIMIT,
+      select: { id: true, rating: true, authorName: true, comment: true, status: true, createdAt: true, createdAtGoogle: true },
+    }),
+  ]);
+
+  const inCurrent = (d: Date) => d >= start;
+  const current = rangeReviews.filter((r) => inCurrent(reviewDate(r)));
+  const previous = rangeReviews.filter((r) => !inCurrent(reviewDate(r)));
+
+  const responseMinutes = (rows: typeof sentResponses) =>
+    average(
+      rows
+        .map((r) => (r.sentAt!.getTime() - reviewDate(r.review).getTime()) / 60000)
+        .filter((m) => Number.isFinite(m) && m >= 0)
+    );
+  const currentSent = sentResponses.filter((r) => inCurrent(r.sentAt!));
+  const previousSent = sentResponses.filter((r) => !inCurrent(r.sentAt!));
+
+  const { buckets, bucket } = buildBuckets(start, now, rangeDays);
+  const series = buckets.map((b) => {
+    const rows = current.filter((r) => {
+      const d = reviewDate(r);
+      return d >= b.start && d < b.end;
+    });
+    const replied = rows.filter((r) => r.status === "responded").length;
+    return { start: b.start.toISOString(), replied, notReplied: rows.length - replied };
   });
 
-  const days = Array.from({ length: rangeDays }, (_, i) => {
-    const d = addDaysUtc(start, i);
-    return { key: toDayKey(d), date: d };
-  });
-
-  const dayMap = new Map<
-    string,
-    {
-      total: number;
-      ratingSum: number;
-      status: Record<ReviewStatus, number>;
-      drafted: number;
-    }
-  >(
-    days.map((d) => [
-      d.key,
-      {
-        total: 0,
-        ratingSum: 0,
-        status: { pending: 0, responded: 0, failed: 0, skipped: 0 },
-        drafted: 0,
-      },
-    ])
-  );
-
-  let totalReviews = 0;
+  const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<1 | 2 | 3 | 4 | 5, number>;
+  let ratingTotal = 0;
   let ratingSum = 0;
-  const statusTotals: Record<ReviewStatus, number> = {
-    pending: 0,
-    responded: 0,
-    failed: 0,
-    skipped: 0,
-  };
-
-  const methodTotals: Record<ResponseMethod, number> = {
-    template: 0,
-    ai: 0,
-    manual: 0,
-  };
-
-  let responseTimeCount = 0;
-  let responseTimeMinutesSum = 0;
-  let draftsAwaitingApprovalTotal = 0;
-  let pendingWithoutDraftTotal = 0;
-
-  const lowRatingOpen: Array<{
-    id: string;
-    rating: number;
-    authorName: string | null;
-    comment: string | null;
-    status: ReviewStatus;
-    createdAt: string;
-  }> = [];
-
-  const draftsAwaitingApproval: Array<{
-    id: string;
-    rating: number;
-    authorName: string | null;
-    comment: string | null;
-    createdAt: string;
-    method: ResponseMethod;
-    draftCreatedAt: string;
-  }> = [];
-
-  for (const r of reviews) {
-    const created = r.createdAtGoogle ?? r.createdAt;
-    const dayKey = toDayKey(startOfDayUtc(created));
-    const bucket = dayMap.get(dayKey);
-    if (!bucket) continue;
-
-    totalReviews += 1;
-    ratingSum += r.rating;
-
-    const status = r.status as ReviewStatus;
-    statusTotals[status] += 1;
-    bucket.total += 1;
-    bucket.ratingSum += r.rating;
-    bucket.status[status] += 1;
-
-    if (r.response?.method) {
-      const method = r.response.method as ResponseMethod;
-      if (methodTotals[method] !== undefined) {
-        methodTotals[method] += 1;
-      }
-      const diffMs = r.response.createdAt.getTime() - created.getTime();
-      const diffMinutes = diffMs / 60000;
-      if (Number.isFinite(diffMinutes) && diffMinutes >= 0) {
-        responseTimeCount += 1;
-        responseTimeMinutesSum += diffMinutes;
-      }
-    }
-
-    const isDraft = status === "pending" && Boolean(r.response?.method) && !r.response?.sentAt;
-
-    if (isDraft) {
-      draftsAwaitingApprovalTotal += 1;
-      bucket.drafted += 1;
-      if (draftsAwaitingApproval.length < 5 && r.response?.method) {
-        draftsAwaitingApproval.push({
-          id: r.id,
-          rating: r.rating,
-          authorName: r.authorName ?? null,
-          comment: r.comment ?? null,
-          createdAt: created.toISOString(),
-          method: r.response.method,
-          draftCreatedAt: r.response.createdAt.toISOString(),
-        });
-      }
-    }
-
-    if ((r.status === "pending" || r.status === "failed") && r.rating <= 2) {
-      if (lowRatingOpen.length < 5) {
-        lowRatingOpen.push({
-          id: r.id,
-          rating: r.rating,
-          authorName: r.authorName ?? null,
-          comment: r.comment ?? null,
-          status,
-          createdAt: created.toISOString(),
-        });
-      }
-    }
+  for (const g of ratingGroups) {
+    if (g.rating >= 1 && g.rating <= 5) ratingDistribution[g.rating as 1 | 2 | 3 | 4 | 5] = g._count._all;
+    ratingTotal += g._count._all;
+    ratingSum += g.rating * g._count._all;
   }
 
-  const averageRating = totalReviews > 0 ? ratingSum / totalReviews : 0;
-  const respondedCount = statusTotals.responded;
-  const responseRate = totalReviews > 0 ? respondedCount / totalReviews : 0;
-  pendingWithoutDraftTotal = Math.max(0, statusTotals.pending - draftsAwaitingApprovalTotal);
-
-  const avgResponseTimeMinutes =
-    responseTimeCount > 0 ? responseTimeMinutesSum / responseTimeCount : null;
-
-  const series = days.map((d) => {
-    const b = dayMap.get(d.key)!;
-    const avg = b.total > 0 ? b.ratingSum / b.total : null;
-    return {
-      day: d.key,
-      total: b.total,
-      avgRating: avg,
-      status: b.status,
-      drafted: b.drafted,
-    };
+  const toListItem = (r: {
+    id: string;
+    rating: number;
+    authorName: string | null;
+    comment: string | null;
+    createdAt: Date;
+    createdAtGoogle: Date | null;
+    status?: string;
+  }) => ({
+    id: r.id,
+    rating: r.rating,
+    authorName: r.authorName,
+    comment: r.comment,
+    createdAt: reviewDate(r).toISOString(),
+    ...(r.status
+      ? { status: r.status, beforeAutomation: isBeforeAutomation({ status: r.status, createdAtGoogle: r.createdAtGoogle }, connectedAt) }
+      : {}),
   });
 
   return NextResponse.json({
-    business: { id: business.id, name: business.name, createdAt: business.createdAt.toISOString() },
-    subscription: subscription
-      ? {
-          plan: subscription.plan,
-          status: subscription.status,
-          createdAt: subscription.createdAt.toISOString(),
-          currentPeriodEnd: subscription.currentPeriodEnd
-            ? subscription.currentPeriodEnd.toISOString()
-            : null,
-          cancelAtPeriodEnd: Boolean(subscription.cancelAtPeriodEnd),
-          cancelAt: subscription.cancelAt ? subscription.cancelAt.toISOString() : null,
-        }
-      : null,
+    business: { id: business.id, name: business.name },
     rangeDays,
-    totals: {
-      totalReviews,
-      averageRating,
-      responseRate,
-      avgResponseTimeMinutes,
-      status: statusTotals,
-      methods: methodTotals,
-      draftsAwaitingApproval: draftsAwaitingApprovalTotal,
-      pendingWithoutDraft: pendingWithoutDraftTotal,
+    automation: {
+      enabled: business.autoResponderEnabled,
+      googleConnected: Boolean(google),
+      locationSelected: Boolean(business.googleLocationId),
+      connectedAt: connectedAt?.toISOString() ?? null,
+      billing: gate.allowed ? "ok" : gate.reason,
+      lastSync: lastSync
+        ? { status: lastSync.status, at: (lastSync.finishedAt ?? lastSync.startedAt).toISOString() }
+        : null,
+    },
+    kpis: {
+      averageRating: {
+        current: average(current.map((r) => r.rating)),
+        previous: average(previous.map((r) => r.rating)),
+      },
+      reviewsReceived: { current: current.length, previous: previous.length },
+      repliesSent: { current: currentSent.length, previous: previousSent.length },
+      avgResponseMinutes: { current: responseMinutes(currentSent), previous: responseMinutes(previousSent) },
     },
     series,
-    lowRatingOpen,
-    draftsAwaitingApproval,
+    bucket,
+    ratings: {
+      distribution: ratingDistribution,
+      total: ratingTotal,
+      average: ratingTotal > 0 ? ratingSum / ratingTotal : null,
+    },
+    attention: {
+      draftsCount,
+      drafts: drafts.map(toListItem),
+      lowRatingCount,
+      lowRating: lowRating.map(toListItem),
+      failedCount,
+    },
+    recentReviews: recentReviews.map(toListItem),
   });
 }

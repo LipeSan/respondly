@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
 import Analytics from "@/components/Analytics";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import {
   DEFAULT_KEYWORDS,
   DEFAULT_OG_IMAGE,
@@ -93,6 +94,7 @@ export default function RootLayout({
           <Analytics />
         </Suspense>
         <ToastProvider>{children}</ToastProvider>
+        <VercelAnalytics />
       </body>
     </html>
   );
