@@ -64,12 +64,25 @@ Rules:
     `Author: ${customer}`,
     `Review: ${comment}`,
     "",
-    "Write the reply. Keep it short (max 600 characters).",
+    `Write only the reply text, ready to post. Keep it under ${clamp(args.settings.maxLength || 600, 120, 600)} characters.`,
   ]
     .filter(Boolean)
     .join("\n");
 
   return { system, user };
+}
+
+/** Trims to maxLength at a sentence boundary when one exists, so a reply is never posted mid-sentence. */
+function trimToLength(text: string, maxLength: number) {
+  if (text.length <= maxLength) return text;
+  const slice = text.slice(0, maxLength);
+  const lastSentenceEnd = Math.max(
+    slice.lastIndexOf(". "),
+    slice.lastIndexOf("! "),
+    slice.lastIndexOf("? "),
+    slice.lastIndexOf("\n")
+  );
+  return (lastSentenceEnd > maxLength * 0.5 ? slice.slice(0, lastSentenceEnd + 1) : slice).trim();
 }
 
 async function generateAiReply(args: { system: string; user: string; maxLength: number }) {
@@ -78,7 +91,9 @@ async function generateAiReply(args: { system: string; user: string; maxLength: 
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
   const maxLength = clamp(args.maxLength || 600, 120, 600);
-  const maxTokens = clamp(Math.floor(maxLength / 4), 80, 240);
+  // ~4 chars per token, doubled for headroom: the token cap is only a safety
+  // net. The prompt asks for the length, so the model finishes its sentence.
+  const maxTokens = clamp(Math.ceil(maxLength / 2), 120, 400);
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -103,10 +118,13 @@ async function generateAiReply(args: { system: string; user: string; maxLength: 
     throw new Error(String(msg));
   }
 
-  const text = String(data?.choices?.[0]?.message?.content ?? "").trim();
+  const choice = data?.choices?.[0];
+  const text = String(choice?.message?.content ?? "").trim();
   if (!text) throw new Error("AI returned empty response");
+  // Hitting the token cap means the reply stopped mid-sentence; never post that.
+  if (choice?.finish_reason === "length") throw new Error("AI reply was cut off before finishing");
 
-  return text.length > maxLength ? text.slice(0, maxLength).trim() : text;
+  return trimToLength(text, maxLength);
 }
 
 export async function autoRespondBusiness(businessId: string) {
@@ -248,11 +266,21 @@ export async function autoRespondBusiness(businessId: string) {
           settings: merged,
         });
 
-        finalText = await generateAiReply({
-          system: prompts.system,
-          user: prompts.user,
-          maxLength: merged.maxLength ?? 600,
-        });
+        try {
+          finalText = await generateAiReply({
+            system: prompts.system,
+            user: prompts.user,
+            maxLength: merged.maxLength ?? 600,
+          });
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "Unknown error";
+          await prisma.review.update({
+            where: { id: review.id },
+            data: { status: "failed", lastError: `AI reply failed: ${msg}` },
+          });
+          console.error("[auto-responder] AI generation failed", { businessId, reviewId: review.id, error: msg });
+          continue;
+        }
         generatedText = finalText;
       } else {
         await prisma.review.update({
