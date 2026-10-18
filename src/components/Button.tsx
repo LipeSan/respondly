@@ -16,7 +16,7 @@ export function Button({
   const baseStyles = "group relative w-full flex justify-center py-3.5 px-4 text-sm font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transform transition-all duration-200 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none";
   
   const variants = {
-    primary: "border border-transparent text-white bg-gradient-to-r from-blue-700 to-green-500 hover:from-blue-800 hover:to-green-600 focus:ring-blue-500 hover:shadow-lg hover:-translate-y-0.5",
+    primary: "border border-transparent bg-origin-border text-white bg-gradient-to-r from-blue-700 to-green-500 hover:from-blue-800 hover:to-green-600 focus:ring-blue-500 hover:shadow-lg hover:-translate-y-0.5",
     outline: "border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-500",
     ghost: "text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-500"
   };
