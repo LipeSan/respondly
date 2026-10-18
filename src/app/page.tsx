@@ -3,7 +3,7 @@ import Script from "next/script";
 import React from "react";
 import Header from "../components/Landing/Header";
 import Hero from "../components/Landing/Hero";
-import Problem from "../components/Landing/Problem";
+import BeforeAfter from "../components/Landing/BeforeAfter";
 import MockupShowcase from "../components/Landing/MockupShowcase";
 import HowItWorks from "../components/Landing/HowItWorks";
 import Features from "../components/Landing/Features";
@@ -31,7 +31,7 @@ const softwareLd = getJsonLdSoftwareApplication(siteUrl, "home");
 export const metadata: Metadata = {
   title: `${SITE_NAME} — AI & Templates for Google Review Replies`,
   description:
-    "Automate every Google review reply with on-brand templates or AI. Respondly replies in seconds, keeps your rating protected and every customer feeling heard.",
+    "Respondly replies to your new Google reviews automatically, with your own templates or AI that reads what the customer wrote. From A$9.99/month, 90-day free trial.",
   keywords: joinKeywords([
     ...DEFAULT_KEYWORDS,
     "Google reviews software",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     url: siteUrl,
     title: `${SITE_NAME} — AI & Templates for Google Review Replies`,
     description:
-      "Respondly automates Google reviews with templates and AI. Reply in your brand voice, detect sentiment, and keep 5-star reputation working for you 24/7.",
+      "Every new Google review answered every evening, with your templates or AI that replies to what the customer actually said. Approve first if you like.",
     images: [
       {
         url: DEFAULT_OG_IMAGE,
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${SITE_NAME} — AI & Templates for Google Review Replies`,
     description:
-      "Templates when you want speed. AI when you want nuance. Automate Google review replies that actually sound like you.",
+      "Templates when you want consistency. AI when you want it personal. Automated Google review replies that sound like you.",
     images: [DEFAULT_OG_IMAGE],
   },
 };
@@ -74,7 +74,7 @@ export default function LandingPage() {
       >
         <Header />
         <Hero />
-        <Problem />
+        <BeforeAfter />
         <MockupShowcase />
         <HowItWorks />
         <Features />

@@ -69,14 +69,17 @@ export default function Header({ showNav = true }: HeaderProps) {
           </nav>
         ) : null}
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Link href="/login" data-testid="header-login-btn">
-            <Button variant="ghost" className="!w-auto !py-2 !text-white hover:!bg-white/10">
+            <Button variant="ghost" className="!w-auto !px-3 sm:!px-4 !py-2 whitespace-nowrap !text-white hover:!bg-white/10">
               Log in
             </Button>
           </Link>
           <Link href="/promo/trial" data-testid="header-cta-btn">
-            <Button className="!w-auto !py-2 shadow-[0_0_24px_-6px_rgba(34,197,94,0.6)]">Start free trial</Button>
+            <Button className="!w-auto !px-3 sm:!px-4 !py-2 whitespace-nowrap shadow-[0_0_24px_-6px_rgba(34,197,94,0.6)]">
+              <span className="sm:hidden">Free trial</span>
+              <span className="hidden sm:inline">Start free trial</span>
+            </Button>
           </Link>
         </div>
       </div>

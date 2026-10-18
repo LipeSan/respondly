@@ -5,19 +5,24 @@ import Link from "next/link";
 import { Button } from "@/components/Button";
 
 
+// The 90-day trial is the VIP90DAYS invite (the same one /promo/trial applies).
+const TRIAL_CODE = "VIP90DAYS";
+
 const plans = [
   {
     id: "starter",
     name: "Starter",
     price: 9.99,
     tag: "Template-powered",
-    description: "Perfect for solo operators and single-location businesses who want speed and consistency.",
+    description: "For a business that wants every review answered with consistent, on-brand replies.",
     features: [
       "Unlimited template replies",
-      "Smart template library by rating",
-      "Basic analytics",
+      "A template for each star rating",
+      "Replies posted automatically every evening",
+      "Approve-first mode",
+      "Dashboard with rating trends",
     ],
-    cta: "Get Starter",
+    cta: "Try Starter free",
     highlight: false,
   },
   {
@@ -25,15 +30,14 @@ const plans = [
     name: "Pro",
     price: 19.99,
     tag: "AI-powered",
-    description: "For teams who want every reply to feel personal — written by AI that actually reads the review.",
+    description: "For owners who want every reply to feel personal, written by AI that reads the review.",
     features: [
       "Everything in Starter",
-      "AI that reads & understands reviews",
-      "Multilingual auto-replies (40+ langs)",
-      "1-click approve workflow",
-      "Fake review auto-flag",
+      "AI replies written from each review",
+      "Replies in the reviewer's language",
+      "Your own tone and instructions for the AI",
     ],
-    cta: "Get Pro",
+    cta: "Try Pro free",
     highlight: true,
   },
 ];
@@ -45,13 +49,13 @@ export default function Pricing() {
         <div className="text-center">
           <span className="text-xs uppercase tracking-[0.25em] text-zinc-400 font-semibold">Pricing</span>
           <h2 className="font-heading mt-4 text-4xl sm:text-5xl font-bold tracking-tight">
-            Simple plans. <span className="gradient-text">Real ROI.</span>
+            Simple plans. <span className="text-zinc-400">No setup fees.</span>
           </h2>
           <p className="mt-4 max-w-xl mx-auto text-zinc-400">
-            No setup fees. Cancel anytime. Start with templates, upgrade to AI when you want it on autopilot.
+            Prices in AUD. Start with templates, switch to AI whenever you like, cancel any time.
           </p>
           <p className="mt-3 text-sm text-zinc-400">
-            Includes a 30-day free trial. Card required.
+            Every plan starts with a 90-day free trial. Card required, cancel before day 90 and you won&apos;t be charged.
           </p>
         </div>
 
@@ -93,7 +97,7 @@ function PlanCard({ plan, delay }: { plan: Plan; delay: number }) {
       <p className="mt-3 text-sm text-zinc-400">{plan.description}</p>
 
       <div className="mt-6 flex items-baseline gap-1">
-        <span className="font-heading text-5xl font-bold">${plan.price}</span>
+        <span className="font-heading text-5xl font-bold">A${plan.price}</span>
         <span className="text-zinc-400">/mo</span>
       </div>
 
@@ -107,7 +111,7 @@ function PlanCard({ plan, delay }: { plan: Plan; delay: number }) {
       </ul>
 
       <div className="mt-auto pt-8" data-testid={`plan-${plan.id}-footer`}>
-        <Link href="/register?next=/start-trial" data-testid={`plan-${plan.id}-cta`}>
+        <Link href={`/register?next=/start-trial&plan=${plan.id}&code=${TRIAL_CODE}`} data-testid={`plan-${plan.id}-cta`}>
           <Button
             className={`${
               plan.highlight

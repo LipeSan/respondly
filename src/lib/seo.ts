@@ -43,7 +43,7 @@ export function getJsonLdSoftwareApplication(siteUrl: string, variant: "home" | 
   const description =
     variant === "promo"
       ? "Get 90 days free of Respondly. Automate every Google review reply with on-brand templates or AI. Save time, protect your rating, and turn every star into trust."
-      : "Respondly automates Google review replies with on-brand templates and AI. Built for local businesses and multi-location brands that want speed, consistency and sentiment-aware answers.";
+      : "Respondly automates Google review replies with on-brand templates and AI. Built for local businesses that want every review answered with replies that sound like them.";
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",

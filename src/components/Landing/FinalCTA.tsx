@@ -20,19 +20,20 @@ export default function FinalCTA() {
           transition={{ duration: 0.6 }}
           className="font-heading text-4xl sm:text-6xl font-bold tracking-tight"
         >
-          Let AI <span className="gradient-text">handle the replies.</span><br />
-          You handle the customers.
+          Let Respondly handle the replies.<br />
+          <span className="text-zinc-400">You handle the customers.</span>
         </motion.h2>
 
         <p className="mt-6 text-lg text-zinc-400 max-w-xl mx-auto">
-          Start today. We&apos;ll set up your first 100 replies on us.
+          Connect Google in about two minutes. From then on, every new review gets a reply the same evening.
         </p>
 
         <div className="mt-10 flex justify-center" data-testid="final-cta-actions">
-          <Link href="/register" data-testid="final-cta-join">
-            <Button className="!w-auto !px-10">Join</Button>
+          <Link href="/promo/trial" data-testid="final-cta-join">
+            <Button className="!w-auto !px-10">Start 90-day free trial</Button>
           </Link>
         </div>
+        <p className="mt-4 text-sm text-zinc-500">From A$9.99/month after your trial. Cancel anytime.</p>
       </div>
     </section>
   );

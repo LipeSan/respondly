@@ -2,23 +2,23 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Plug, BrainCircuit, Send } from "lucide-react";
+import { Plug, SlidersHorizontal, Send } from "lucide-react";
 
 const steps = [
   {
     icon: Plug,
-    title: "Connect",
-    desc: "Link your Google Business Profile in under a minute. We pull reviews automatically — no scraping, no copy-paste.",
+    title: "Connect Google",
+    desc: "Sign in with Google and pick your business location. Respondly uses Google's official Business Profile access, and you can disconnect any time.",
   },
   {
-    icon: BrainCircuit,
-    title: "Understand",
-    desc: "Pro plan reads each review with AI — detects tone, intent, language and the actual issue raised.",
+    icon: SlidersHorizontal,
+    title: "Set your rules",
+    desc: "Choose what each star rating gets: your own template, or an AI-written reply on Pro. Post automatically, or keep replies as drafts to approve.",
   },
   {
     icon: Send,
-    title: "Reply",
-    desc: "Auto-publish on-brand answers, or approve in one click. Every customer feels heard. Every star rebuilds trust.",
+    title: "Replies go out",
+    desc: "Every evening, Respondly picks up the day's new reviews and posts the replies your rules call for. You'll see them all in your dashboard.",
   },
 ];
 
@@ -29,7 +29,7 @@ export default function HowItWorks() {
         <div className="max-w-3xl">
           <span className="text-xs uppercase tracking-[0.25em] text-zinc-400 font-semibold">How it works</span>
           <h2 className="font-heading mt-4 text-4xl sm:text-5xl font-bold tracking-tight">
-            Three steps. <span className="text-zinc-400">That&apos;s it.</span>
+            Set up once. <span className="text-zinc-400">Replies every night.</span>
           </h2>
         </div>
 
