@@ -212,9 +212,7 @@ function StartTrialInner() {
           <div className="text-center">
             <Text variant="h1">Start your free trial</Text>
             <Text variant="body" className="mt-2 text-gray-600">
-              {isPromo90DaysOffer
-                ? "90-day free trial. Card required. Cancel anytime."
-                : "30-day free trial. Card required. Cancel anytime."}
+              90-day free trial. Card required. Cancel anytime.
             </Text>
           </div>
 
@@ -306,9 +304,7 @@ function StartTrialInner() {
                   />
                   <Button onClick={startCheckout} isLoading={startingTrial} disabled={startingTrial}>
                     {trialEligible
-                      ? isPromo90DaysOffer
-                        ? "Start 90-day free trial"
-                        : "Start 30-day free trial"
+                      ? "Start 90-day free trial"
                       : hasInviteCode
                         ? "Continue with invite code"
                         : "Continue to checkout"}

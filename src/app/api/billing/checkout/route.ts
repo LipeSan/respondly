@@ -6,6 +6,9 @@ import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Free trial for a first subscription without an invite code. Keep landing/start-trial copy in sync. */
+const DEFAULT_TRIAL_DAYS = 90;
+
 async function recordTrialInviteRedemption(args: { businessId: string; inviteCode: string }) {
   const code = args.inviteCode.trim().toUpperCase();
   if (!code) return;
@@ -416,7 +419,7 @@ export async function POST(req: Request) {
       trialDays = invite.days;
       appliedInviteCode = inviteCode;
     } else if (!hasStartedPaidLifecycle) {
-      trialDays = 30;
+      trialDays = DEFAULT_TRIAL_DAYS;
     }
 
     const session = await stripe.checkout.sessions.create({
