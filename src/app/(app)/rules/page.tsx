@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
+import { Card, CardHeader } from "@/components/Card";
 import { Input } from "@/components/Input";
 import { Modal } from "@/components/Modal";
 import { Select } from "@/components/Select";
@@ -40,6 +41,31 @@ function getErrorMessage(e: unknown) {
   if (e instanceof Error) return e.message;
   if (typeof e === "string") return e;
   return "Unexpected error";
+}
+
+function ResponseTypeBadge({ type }: { type: Rule["responseType"] }) {
+  return type === "ai" ? (
+    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">AI</span>
+  ) : (
+    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">Template</span>
+  );
+}
+
+function ModeBadge({ mode }: { mode: Rule["mode"] }) {
+  return mode === "auto" ? (
+    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Auto</span>
+  ) : (
+    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">Manual</span>
+  );
+}
+
+function RulesSkeleton() {
+  return (
+    <div className="grid animate-pulse gap-6 lg:grid-cols-3" aria-busy="true" aria-label="Loading rules">
+      <div className="h-80 rounded-2xl bg-gray-100" />
+      <div className="h-80 rounded-2xl bg-gray-100 lg:col-span-2" />
+    </div>
+  );
 }
 
 export default function RulesPage() {
@@ -260,29 +286,41 @@ export default function RulesPage() {
   }, [form.minStars, form.maxStars]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="flex items-start justify-between gap-4">
+    <div className="pb-12">
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <Text variant="h1">Rules</Text>
-            <Text variant="subtitle" className="mt-2">
-              Define which templates to use based on review stars.
-            </Text>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-green-600">Choose how each review is answered based on its star rating.</p>
           </div>
-
-          <Button
-            className="!w-auto"
-            onClick={startNew}
-          >
-            New Rule
+          <Button className="!w-auto px-4 py-2" onClick={startNew}>
+            New rule
           </Button>
         </div>
 
-        {error && (
-          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-            {error}
+        {error ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-red-800">{error}</p>
+            <Button variant="outline" className="!w-auto bg-white px-4 py-2" onClick={() => load()}>
+              Try again
+            </Button>
           </div>
-        )}
+        ) : null}
+
+        {templates.length === 0 && !loading ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-amber-900">You don&apos;t have any templates yet</p>
+              <p className="mt-0.5 text-sm text-amber-800">Create at least one template before adding template rules.</p>
+            </div>
+            <Link
+              href="/templates"
+              className="inline-flex shrink-0 items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-700"
+            >
+              Create template
+            </Link>
+          </div>
+        ) : null}
 
         <Modal
           open={confirmDeleteOpen}
@@ -328,277 +366,210 @@ export default function RulesPage() {
           </Text>
         </Modal>
 
-        {templates.length === 0 && !loading && (
-          <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-            <Text variant="body" className="text-sm text-yellow-800">
-              You don&apos;t have any templates yet. Create at least 1 in{" "}
-              <Link href="/templates" className="font-semibold underline underline-offset-2">
-                Templates
-              </Link>{" "}
-              before creating rules.
-            </Text>
-          </div>
-        )}
-
-        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {/* Lista */}
-          <div className="rounded-2xl border border-gray-100 bg-white shadow-xl md:col-span-1">
-            <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4">
-              <Text variant="h2" className="!text-lg">Rules (by priority)</Text>
-            </div>
-
-            {loading ? (
-              <div className="p-6">
-                <Text variant="body">Loading...</Text>
-              </div>
-            ) : rules.length === 0 ? (
-              <div className="p-6">
-                <Text variant="body">No rules yet.</Text>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {rules.map((r) => (
-                  <div
-                    key={r.id}
-                    className={`flex items-center justify-between gap-2 px-6 py-4 transition-colors ${
-                      selectedId === r.id ? "bg-blue-50/50" : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <button className="flex-1 text-left" onClick={() => setSelectedId(r.id)}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs rounded-full bg-gray-100 px-2 py-1 text-gray-700 font-medium">
-                          P{r.priority}
-                        </span>
-                        <Text variant="body" className="font-semibold text-gray-900">
-                          {formatRange(r.minStars, r.maxStars)}
-                        </Text>
-                      </div>
-                      <div className="mt-1 flex items-center gap-2">
-                        {r.responseType === "ai" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              className="h-3.5 w-3.5"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M9.965 2.5a.75.75 0 0 1 .75.75c0 2.152.814 3.818 2.178 4.95 1.36 1.13 3.28 1.72 5.357 1.72a.75.75 0 0 1 0 1.5c-2.077 0-3.997.59-5.357 1.72-1.364 1.132-2.178 2.798-2.178 4.95a.75.75 0 0 1-1.5 0c0-2.152-.814-3.818-2.178-4.95-1.36-1.13-3.28-1.72-5.357-1.72a.75.75 0 0 1 0-1.5c2.077 0 3.997-.59 5.357-1.72 1.364-1.132 2.178-2.798 2.178-4.95a.75.75 0 0 1 .75-.75Z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            AI
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-700">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              className="h-3.5 w-3.5"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M4 2.75A1.75 1.75 0 0 1 5.75 1h5.19c.464 0 .91.184 1.238.512l3.06 3.06c.328.328.512.774.512 1.238v11.44A1.75 1.75 0 0 1 14 19H5.75A1.75 1.75 0 0 1 4 17.25V2.75ZM11 2.5v3.25c0 .414.336.75.75.75H15.5v-.69a.25.25 0 0 0-.073-.177l-3.06-3.06A.25.25 0 0 0 12.19 2.5H11Z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Template
-                          </span>
-                        )}
-                      </div>
-                      <Text variant="body" className="mt-1 text-xs text-gray-500">
-                        Mode: {r.mode}
-                      </Text>
-                    </button>
-
-                    <Button
-                      variant="ghost"
-                      className="!w-8 !h-8 !p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => {
-                        setConfirmDeleteId(r.id);
-                        setConfirmDeleteOpen(true);
-                      }}
-                      disabled={deletingId === r.id}
-                      title="Delete"
+        {loading && rules.length === 0 ? (
+          <RulesSkeleton />
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card>
+              <CardHeader title="Your rules" subtitle="Checked by priority. The first match is used." />
+              {rules.length === 0 ? (
+                <div className="mt-5 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center">
+                  <p className="text-sm font-medium text-gray-700">No rules yet</p>
+                  <p className="mt-1 max-w-xs text-sm text-gray-500">Create your first rule to start answering reviews.</p>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {rules.map((r) => (
+                    <div
+                      key={r.id}
+                      className={`group flex items-center justify-between gap-2 rounded-xl border bg-gray-50 px-3 py-3 transition-colors ${
+                        selectedId === r.id ? "border-green-500 ring-1 ring-green-500" : "border-transparent hover:bg-gray-100"
+                      }`}
                     >
-                      {deletingId === r.id ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-red-600" />
-                      ) : (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={1.5}
-                          stroke="currentColor"
-                          className="w-4 h-4"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-                          />
-                        </svg>
-                      )}
-                    </Button>
+                      <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setSelectedId(r.id)}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium text-gray-400 tabular-nums">P{r.priority}</span>
+                          <span className="text-sm font-medium text-gray-900">{formatRange(r.minStars, r.maxStars)}</span>
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <ResponseTypeBadge type={r.responseType} />
+                          <ModeBadge mode={r.mode} />
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        aria-label="Delete rule"
+                        title="Delete"
+                        disabled={deletingId === r.id}
+                        onClick={() => {
+                          setConfirmDeleteId(r.id);
+                          setConfirmDeleteOpen(true);
+                        }}
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                      >
+                        {deletingId === r.id ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-red-600" />
+                        ) : (
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path
+                              fillRule="evenodd"
+                              d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader
+                title={isEditing ? "Edit rule" : "New rule"}
+                subtitle={isEditing ? "Changes apply to new reviews only." : "Pick a star range and how to reply."}
+                action={
+                  <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                    {rangeLabel}
+                  </span>
+                }
+              />
+
+              <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                  <Input
+                    label="Priority"
+                    type="number"
+                    value={form.priority}
+                    onChange={(e) => setForm((s) => ({ ...s, priority: Number(e.target.value) }))}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Lower number = applies first.</p>
+                </div>
+
+                <div>
+                  <Select
+                    label="Mode"
+                    value={form.mode}
+                    onChange={(e) => {
+                      const v = e.target.value === "manual" ? "manual" : "auto";
+                      setForm((s) => ({ ...s, mode: v }));
+                    }}
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="manual">Manual</option>
+                  </Select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Select
+                    label="Response type"
+                    value={form.responseType}
+                    onChange={(e) => {
+                      const v = e.target.value as "template" | "ai";
+                      if (v === "ai" && !canUseAi) return;
+                      setForm((s) => ({ ...s, responseType: v }));
+                    }}
+                  >
+                    <option value="template">Template</option>
+                    <option value="ai" disabled={!canUseAi}>
+                      AI {canUseAi ? "" : "(Pro)"}
+                    </option>
+                  </Select>
+                  {!canUseAi ? (
+                    <p className="mt-1 text-xs text-gray-500">
+                      AI is available only on the Pro plan (active subscription).
+                    </p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <Input
+                    label="Min stars"
+                    type="number"
+                    placeholder="e.g. 4"
+                    value={form.minStars}
+                    onChange={(e) => setForm((s) => ({ ...s, minStars: e.target.value }))}
+                    min={1}
+                    max={5}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Empty for &quot;no minimum&quot;.</p>
+                </div>
+
+                <div>
+                  <Input
+                    label="Max stars"
+                    type="number"
+                    placeholder="e.g. 5"
+                    value={form.maxStars}
+                    onChange={(e) => setForm((s) => ({ ...s, maxStars: e.target.value }))}
+                    min={1}
+                    max={5}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Empty for &quot;no maximum&quot;.</p>
+                </div>
+
+                {form.responseType === "template" ? (
+                  <div className="sm:col-span-2">
+                    <Select
+                      label="Template"
+                      value={form.templateId}
+                      onChange={(e) => setForm((s) => ({ ...s, templateId: e.target.value }))}
+                      disabled={templates.length === 0}
+                    >
+                      <option value="">Select...</option>
+                      {templates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </Select>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Editor */}
-          <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-xl md:col-span-2">
-            <div className="flex items-center justify-between">
-              <Text variant="h2" className="!text-lg">
-                {isEditing ? "Edit Rule" : "Create Rule"}
-              </Text>
-              <Text variant="body" className="text-xs">
-                Range: <b>{rangeLabel}</b>
-              </Text>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <Input
-                  label="Priority"
-                  type="number"
-                  value={form.priority}
-                  onChange={(e) => setForm((s) => ({ ...s, priority: Number(e.target.value) }))}
-                />
-                <Text variant="body" className="mt-1 text-xs">
-                  Lower number = applies first.
-                </Text>
+                ) : null}
               </div>
 
-              <div>
-                <Select
-                  label="Mode"
-                  value={form.mode}
-                  onChange={(e) => {
-                    const v = e.target.value === "manual" ? "manual" : "auto";
-                    setForm((s) => ({ ...s, mode: v }));
-                  }}
-                >
-                  <option value="auto">auto</option>
-                  <option value="manual">manual</option>
-                </Select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <Select
-                  label="Response type"
-                  value={form.responseType}
-                  onChange={(e) => {
-                    const v = e.target.value as "template" | "ai";
-                    if (v === "ai" && !canUseAi) return;
-                    setForm((s) => ({ ...s, responseType: v }));
-                  }}
-                >
-                  <option value="template">template</option>
-                  <option value="ai" disabled={!canUseAi}>
-                    ai {canUseAi ? "" : "(Pro)"}
-                  </option>
-                </Select>
-                {!canUseAi && (
-                  <Text variant="body" className="mt-1 text-xs text-gray-500">
-                    AI is available only on the Pro plan (active subscription).
-                  </Text>
+              <div className="mt-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  {form.responseType === "template" ? "Preview" : "AI reply"}
+                </p>
+                {form.responseType === "template" ? (
+                  <div className="mt-2 whitespace-pre-wrap text-sm text-gray-900">
+                    {(templates.find((t) => t.id === form.templateId)?.body ?? "Select a template")
+                      .replaceAll("{{customer_name}}", "Ana")
+                      .replaceAll("{{business_name}}", "Filipe's Steakhouse")
+                      .replaceAll("{{phone}}", "+61 400 000 000")
+                      .replaceAll("{{email}}", "contact@example.com")}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-700">
+                    The reply will be generated automatically based on your Pro plan AI settings.
+                  </p>
                 )}
               </div>
 
-              <div>
-                <Input
-                  label="Min Stars"
-                  type="number"
-                  placeholder="e.g. 4"
-                  value={form.minStars}
-                  onChange={(e) => setForm((s) => ({ ...s, minStars: e.target.value }))}
-                  min={1}
-                  max={5}
-                />
-                <Text variant="body" className="mt-1 text-xs">Empty for &quot;no minimum&quot;.</Text>
-              </div>
-
-              <div>
-                <Input
-                  label="Max Stars"
-                  type="number"
-                  placeholder="e.g. 5"
-                  value={form.maxStars}
-                  onChange={(e) => setForm((s) => ({ ...s, maxStars: e.target.value }))}
-                  min={1}
-                  max={5}
-                />
-                <Text variant="body" className="mt-1 text-xs">Empty for &quot;no maximum&quot;.</Text>
-              </div>
-
-              {form.responseType === "template" && (
-                <div className="sm:col-span-2">
-                  <Select
-                    label="Template"
-                    value={form.templateId}
-                    onChange={(e) => setForm((s) => ({ ...s, templateId: e.target.value }))}
-                    disabled={templates.length === 0}
-                  >
-                    <option value="">Select...</option>
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              )}
-            </div>
-
-            {form.responseType === "template" ? (
-              <div className="mt-6 rounded-lg border border-gray-100 bg-gray-50 p-4">
-                <Text variant="label" className="mb-2">Preview</Text>
-                <div className="whitespace-pre-wrap text-sm text-gray-900">
-                  {(templates.find((t) => t.id === form.templateId)?.body ?? "Select a template")
-                    .replaceAll("{{customer_name}}", "Ana")
-                    .replaceAll("{{business_name}}", "Filipe's Steakhouse")
-                    .replaceAll("{{phone}}", "+61 400 000 000")
-                    .replaceAll("{{email}}", "contact@example.com")}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-6 rounded-lg border border-gray-100 bg-gray-50 p-4">
-                <Text variant="label" className="mb-2">AI</Text>
-                <Text variant="body" className="text-sm text-gray-700">
-                  The reply will be generated automatically based on your Pro plan AI settings.
-                </Text>
-              </div>
-            )}
-
-            <div className="mt-6 flex gap-3">
-              <Button
-                className="!w-auto"
-                disabled={saving || (form.responseType === "template" && (templates.length === 0 || !form.templateId))}
-                onClick={save}
-              >
-                {saving ? "Saving..." : isEditing ? "Save Changes" : "Create Rule"}
-              </Button>
-
-              {isEditing && (
+              <div className="mt-6 flex gap-3">
                 <Button
-                  variant="ghost"
-                  className="!w-auto"
-                  onClick={startNew}
+                  className="!w-auto px-4 py-2"
+                  disabled={saving || (form.responseType === "template" && (templates.length === 0 || !form.templateId))}
+                  onClick={save}
                 >
-                  Cancel
+                  {saving ? "Saving..." : isEditing ? "Save changes" : "Create rule"}
                 </Button>
-              )}
-            </div>
+                {isEditing ? (
+                  <Button variant="ghost" className="!w-auto px-4 py-2" onClick={startNew}>
+                    Cancel
+                  </Button>
+                ) : null}
+              </div>
 
-            <Text variant="body" className="mt-4 text-xs">
-              Tip: create a rule for 1–3⭐ (apologies) with priority 10 and another for 4–5⭐ (thank you) with priority 20.
-            </Text>
+              <p className="mt-4 text-xs text-gray-400">
+                Tip: create a rule for 1–3★ (apologies) with priority 10 and another for 4–5★ (thank you) with priority 20.
+              </p>
+            </Card>
           </div>
-        </div>
-      </div>
+        )}
+      </main>
     </div>
   );
 }

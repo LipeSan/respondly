@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
+import { Card, CardHeader } from "@/components/Card";
 import { Input } from "@/components/Input";
 import { Textarea } from "@/components/Textarea";
 import { Text } from "@/components/Text";
@@ -29,6 +30,15 @@ function getErrorMessage(e: unknown) {
   return "Unexpected error";
 }
 
+function TemplatesSkeleton() {
+  return (
+    <div className="grid animate-pulse gap-6 lg:grid-cols-3" aria-busy="true" aria-label="Loading templates">
+      <div className="h-80 rounded-2xl bg-gray-100" />
+      <div className="h-80 rounded-2xl bg-gray-100 lg:col-span-2" />
+    </div>
+  );
+}
+
 export default function TemplatesPage() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -48,8 +58,6 @@ export default function TemplatesPage() {
   );
 
   const [form, setForm] = useState({ id: "", name: "", body: "" });
-
-  // ... (rest of the state logic)
 
   async function load() {
     setLoading(true);
@@ -191,29 +199,26 @@ export default function TemplatesPage() {
   const isEditing = !!form.id;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="flex items-start justify-between gap-4">
+    <div className="pb-12">
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <Text variant="h1">Templates</Text>
-            <Text variant="subtitle" className="mt-2">
-              Create reusable messages to automatically respond to reviews.
-            </Text>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-green-600">Reusable messages your rules use to reply to reviews.</p>
           </div>
-
-          <Button
-            className="!w-auto"
-            onClick={startNew}
-          >
-            New Template
+          <Button className="!w-auto px-4 py-2" onClick={startNew}>
+            New template
           </Button>
         </div>
 
-        {error && (
-          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-            {error}
+        {error ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-red-800">{error}</p>
+            <Button variant="outline" className="!w-auto bg-white px-4 py-2" onClick={() => load()}>
+              Try again
+            </Button>
           </div>
-        )}
+        ) : null}
 
         <Modal
           open={confirmDeleteOpen}
@@ -259,157 +264,137 @@ export default function TemplatesPage() {
           </Text>
         </Modal>
 
-        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {/* List */}
-          <div className="rounded-2xl border border-gray-100 bg-white shadow-xl md:col-span-1">
-            <div className="border-b border-gray-100 bg-gray-50/50 px-6 py-4">
-              <Text variant="h2" className="!text-lg">Your Templates</Text>
-            </div>
-
-            {loading ? (
-              <div className="p-6">
-                <Text variant="body">Loading...</Text>
-              </div>
-            ) : templates.length === 0 ? (
-              <div className="p-6">
-                <Text variant="body">No templates yet.</Text>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {templates.map((t) => (
-                  <div
-                    key={t.id}
-                    className={`flex items-center justify-between gap-2 px-6 py-4 transition-colors ${
-                      selectedId === t.id ? "bg-blue-50/50" : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <button
-                      className="flex-1 text-left"
-                      onClick={() => setSelectedId(t.id)}
+        {loading && templates.length === 0 ? (
+          <TemplatesSkeleton />
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card>
+              <CardHeader title="Your templates" subtitle="Pick one to edit it." />
+              {templates.length === 0 ? (
+                <div className="mt-5 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center">
+                  <p className="text-sm font-medium text-gray-700">No templates yet</p>
+                  <p className="mt-1 max-w-xs text-sm text-gray-500">Write your first reply to use it in your rules.</p>
+                </div>
+              ) : (
+                <div className="mt-3 divide-y divide-gray-100">
+                  {templates.map((t) => (
+                    <div
+                      key={t.id}
+                      className={`flex items-start justify-between gap-2 rounded-xl px-3 py-3 transition-colors ${
+                        selectedId === t.id ? "bg-gray-50" : "hover:bg-gray-50"
+                      }`}
                     >
-                      <Text variant="body" className="font-semibold text-gray-900">{t.name}</Text>
-                      <Text variant="body" className="mt-1 line-clamp-2 text-xs">{t.body}</Text>
-                    </button>
+                      <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setSelectedId(t.id)}>
+                        <p className="truncate text-sm font-medium text-gray-900">{t.name}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-gray-600">{t.body}</p>
+                      </button>
 
-                    <Button
-                      variant="ghost"
-                      className="!w-8 !h-8 !p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => {
-                        setConfirmDeleteId(t.id);
-                        setConfirmDeleteOpen(true);
-                      }}
-                      disabled={deletingId === t.id}
-                      title="Delete"
-                    >
-                      {deletingId === t.id ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-red-600" />
-                      ) : (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={1.5}
-                          stroke="currentColor"
-                          className="w-4 h-4"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-                          />
-                        </svg>
-                      )}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                      <button
+                        type="button"
+                        aria-label="Delete template"
+                        title="Delete"
+                        disabled={deletingId === t.id}
+                        onClick={() => {
+                          setConfirmDeleteId(t.id);
+                          setConfirmDeleteOpen(true);
+                        }}
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                      >
+                        {deletingId === t.id ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-red-600" />
+                        ) : (
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path
+                              fillRule="evenodd"
+                              d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
 
-          {/* Editor */}
-          <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-xl md:col-span-2">
-            <div className="flex items-center justify-between">
-              <Text variant="h2" className="!text-xl">
-                {isEditing ? "Edit Template" : "Create Template"}
-              </Text>
-
-              <div className="flex flex-wrap gap-2">
-                {VARS.map((v) => (
-                  <Button
-                    key={v}
-                    variant="outline"
-                    className="!w-auto !py-1 !px-3 text-xs !font-normal !rounded-full"
-                    onClick={() => setForm((s) => ({ ...s, body: s.body ? s.body + " " + v : v }))}
-                    type="button"
-                  >
-                    Insert {v}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <Input
-                label="Name"
-                className="w-full"
-                value={form.name}
-                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-                placeholder="Ex: 5-star Thank You"
+            <Card className="lg:col-span-2">
+              <CardHeader
+                title={isEditing ? "Edit template" : "New template"}
+                subtitle="Variables are replaced with the review's details when the reply is sent."
               />
 
-              <div>
-                <Textarea
-                  label="Message"
-                  className="mt-1 min-h-[160px] w-full"
-                  value={form.body}
-                  onChange={(e) => setForm((s) => ({ ...s, body: e.target.value }))}
-                  placeholder="Write the response..."
+              <div className="mt-6 space-y-6">
+                <Input
+                  label="Name"
+                  className="w-full"
+                  value={form.name}
+                  onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                  placeholder="Ex: 5-star Thank You"
                 />
-                <Text variant="body" className="mt-2 text-xs text-gray-500">
-                  Supported variables: {VARS.join(", ")}
-                </Text>
-              </div>
 
-              <div className="flex gap-3">
-                <Button
-                  className="!w-auto"
-                  disabled={saving || !form.name.trim() || !form.body.trim()}
-                  isLoading={saving}
-                  onClick={isEditing ? updateTemplate : createTemplate}
-                >
-                  {isEditing ? "Save Changes" : "Create Template"}
-                </Button>
+                <div>
+                  <Textarea
+                    label="Message"
+                    className="mt-1 min-h-[160px] w-full"
+                    value={form.body}
+                    onChange={(e) => setForm((s) => ({ ...s, body: e.target.value }))}
+                    placeholder="Write the response..."
+                  />
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-gray-500">Insert:</span>
+                    {VARS.map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setForm((s) => ({ ...s, body: s.body ? s.body + " " + v : v }))}
+                        className="rounded-full bg-gray-100 px-2.5 py-1 font-mono text-xs text-gray-700 transition-colors hover:bg-gray-200"
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                {isEditing && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Preview</p>
+                  <div className="mt-2 whitespace-pre-wrap text-sm text-gray-900">
+                    {form.body.trim() ? (
+                      form.body
+                        .replaceAll("{{customer_name}}", "Ana")
+                        .replaceAll("{{business_name}}", "Churrascaria do Filipe")
+                        .replaceAll("{{phone}}", "+61 400 000 000")
+                        .replaceAll("{{email}}", "contato@exemplo.com")
+                    ) : (
+                      <span className="text-gray-400">Your message will appear here.</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
                   <Button
-                    variant="outline"
-                    className="!w-auto"
-                    onClick={startNew}
+                    className="!w-auto px-4 py-2"
+                    disabled={saving || !form.name.trim() || !form.body.trim()}
+                    isLoading={saving}
+                    onClick={isEditing ? updateTemplate : createTemplate}
                   >
-                    Cancel
+                    {isEditing ? "Save changes" : "Create template"}
                   </Button>
-                )}
-              </div>
-
-              {/* Preview */}
-              <div className="rounded-xl border border-gray-100 bg-gray-50 p-6">
-                <Text variant="label">Preview</Text>
-                <div className="mt-2 whitespace-pre-wrap text-sm text-gray-900 font-sans">
-                  {form.body
-                    .replaceAll("{{customer_name}}", "Ana")
-                    .replaceAll("{{business_name}}", "Churrascaria do Filipe")
-                    .replaceAll("{{phone}}", "+61 400 000 000")
-                    .replaceAll("{{email}}", "contato@exemplo.com")}
+                  {isEditing ? (
+                    <Button variant="ghost" className="!w-auto px-4 py-2" onClick={startNew}>
+                      Cancel
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 
-              <Text variant="body" className="text-xs text-gray-500">
+              <p className="mt-4 text-xs text-gray-400">
                 Tip: use &quot;rotate templates&quot; later to avoid repeating the same response.
-              </Text>
-            </div>
+              </p>
+            </Card>
           </div>
-        </div>
-      </div>
+        )}
+      </main>
     </div>
   );
 }

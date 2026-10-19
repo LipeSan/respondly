@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
+import { Card, CardHeader } from "@/components/Card";
 import { Text } from "@/components/Text";
 import { formatDate } from "@/lib/date";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
@@ -95,22 +96,6 @@ function Stars({ n, size = "h-3.5 w-3.5" }: { n: number; size?: string }) {
         </svg>
       ))}
     </span>
-  );
-}
-
-function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-gray-100 bg-white p-6 shadow-sm ${className}`}>{children}</div>;
-}
-
-function CardHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-        {subtitle ? <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p> : null}
-      </div>
-      {action}
-    </div>
   );
 }
 
@@ -545,7 +530,7 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <Text variant="h1">Dashboard</Text>
-            <p className="mt-1 text-sm text-gray-500">{metrics?.business.name ?? " "}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-green-600">{metrics?.business.name ?? " "}</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1" role="group" aria-label="Date range">

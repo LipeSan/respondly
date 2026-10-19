@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
 import { Text } from "@/components/Text";
 import { Textarea } from "@/components/Textarea";
 import { useToast } from "@/components/Toast";
@@ -61,23 +62,21 @@ function getFilterBucket(r: Review): Exclude<StatusFilter, "all"> {
   return r.beforeAutomation ? "before_automation" : r.status;
 }
 
-function Stars({ n }: { n: number }) {
+function Stars({ n, size = "h-3.5 w-3.5" }: { n: number; size?: string }) {
   return (
-    <div className="flex gap-0.5">
+    <span className="inline-flex gap-0.5" aria-label={`${n} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((i) => (
         <svg
           key={i}
-          className={`h-4 w-4 ${i <= n ? "fill-current text-yellow-400" : "text-gray-300"}`}
-          xmlns="http://www.w3.org/2000/svg"
+          className={`${size} ${i <= n ? "text-yellow-400" : "text-gray-200"}`}
           viewBox="0 0 20 20"
           fill="currentColor"
+          aria-hidden="true"
         >
-          <path
-            d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
-          />
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
         </svg>
       ))}
-    </div>
+    </span>
   );
 }
 
@@ -93,6 +92,25 @@ function getStatusBadge(r: Review) {
   if (r.status === "responded") return { label: "Responded", classes: "bg-green-100 text-green-800" };
   if (r.status === "failed") return { label: "Failed", classes: "bg-red-100 text-red-800" };
   return { label: "Skipped", classes: "bg-gray-100 text-gray-800" };
+}
+
+function StatusBadge({ review }: { review: Review }) {
+  const badge = getStatusBadge(review);
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.classes}`}>{badge.label}</span>;
+}
+
+function ReviewsSkeleton() {
+  return (
+    <div className="animate-pulse divide-y divide-gray-100" aria-busy="true" aria-label="Loading reviews">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="px-3 py-4">
+          <div className="h-3.5 w-48 rounded bg-gray-100" />
+          <div className="mt-3 h-3 w-full rounded bg-gray-100" />
+          <div className="mt-2 h-3 w-2/3 rounded bg-gray-100" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function ReviewsPage() {
@@ -310,43 +328,45 @@ export default function ReviewsPage() {
     return () => observer.disconnect();
   }, [loadMore, nextCursor]);
 
+  function closeReview() {
+    setOpenId(null);
+    setDetail(null);
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="flex items-start justify-between gap-4">
+    <div className="pb-12">
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="space-y-4">
           <div>
             <Text variant="h1">Reviews</Text>
-            <Text variant="subtitle" className="mt-2">
-              Here you can see pending reviews and generated responses.
-            </Text>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-green-600">
+              Every Google review and the reply it got.
+            </p>
           </div>
-
-          <div className="flex gap-2" />
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-2">
-          {filterOptions.map((s) => (
-            <button
-              key={s}
-              className={`rounded-full border px-4 py-2 transition-all ${
-                status === s
-                  ? "border-blue-600 bg-blue-600 text-white shadow-md"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-              }`}
-              onClick={() => setStatus(s)}
-            >
-              <span className="text-sm font-medium">
-                {filterLabels[s]}{" "}
-                <span className={`ml-1 ${status === s ? "text-blue-100" : "text-gray-400"}`}>
-                  {counts[s] ?? 0}
-                </span>
-              </span>
-            </button>
-          ))}
+          <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1" role="group" aria-label="Filter by status">
+              {filterOptions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={status === s}
+                  onClick={() => setStatus(s)}
+                  className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    status === s ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {filterLabels[s]}
+                  <span className={`ml-1.5 tabular-nums ${status === s ? "text-gray-300" : "text-gray-400"}`}>
+                    {counts[s] ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {automationStartsAt && counts.before_automation > 0 ? (
-          <InlineNotification tone="info" className="mt-6">
+          <InlineNotification tone="info">
             Automatic replies started on <strong>{formatDate(automationStartsAt)}</strong>, when you connected
             Google. {counts.before_automation === 1 ? "1 review" : `${counts.before_automation} reviews`} posted
             before that date won&apos;t be answered automatically. You&apos;ll find them under{" "}
@@ -361,79 +381,60 @@ export default function ReviewsPage() {
           </InlineNotification>
         ) : null}
 
-        {error && (
-          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-            {error}
+        {error ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-red-800">{error}</p>
+            <Button variant="outline" className="!w-auto bg-white px-4 py-2" onClick={() => loadPage(null)}>
+              Try again
+            </Button>
           </div>
-        )}
+        ) : null}
 
-        <div className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-xl">
-          <div className="grid grid-cols-12 border-b border-gray-100 bg-gray-50/50 px-6 py-4">
-            <div className="col-span-2"><Text variant="label">Stars</Text></div>
-            <div className="col-span-2"><Text variant="label">Status</Text></div>
-            <div className="col-span-3"><Text variant="label">Author</Text></div>
-            <div className="col-span-5"><Text variant="label">Comment</Text></div>
-          </div>
-
+        <Card className="!p-3 sm:!p-4">
           {loading ? (
-            <div className="p-6">
-              <Text variant="body">Loading...</Text>
-            </div>
+            <ReviewsSkeleton />
           ) : items.length === 0 ? (
-            <div className="p-6">
-              <Text variant="body">No reviews found.</Text>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 px-4 py-16 text-center">
+              <p className="text-sm font-medium text-gray-700">No reviews here</p>
+              <p className="mt-1 max-w-xs text-sm text-gray-500">
+                {status === "all"
+                  ? "New Google reviews will show up here as soon as they're synced."
+                  : `There are no ${filterLabels[status].toLowerCase()} reviews right now.`}
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
               {items.map((r) => (
                 <button
                   key={r.id}
+                  type="button"
                   onClick={() => openReview(r.id)}
-                  className="grid w-full grid-cols-12 items-start gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50"
+                  className="group flex w-full items-start justify-between gap-4 rounded-xl px-3 py-4 text-left transition-colors hover:bg-gray-50"
                 >
-                  <div className="col-span-2">
-                    <div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Stars n={r.rating} />
+                      <span className="text-sm font-medium text-gray-900">{r.authorName || "Anonymous"}</span>
+                      <span className="text-xs text-gray-400">{formatDateTime(r.createdAtGoogle ?? r.createdAt)}</span>
                     </div>
-                    <Text variant="body" className="text-xs text-gray-500">{r.rating}/5</Text>
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-600">{r.comment || "No comment, rating only."}</p>
+                    {r.responses?.[0]?.finalText ? (
+                      <p className="mt-2 line-clamp-2 border-l-2 border-gray-200 pl-3 text-sm text-gray-500">
+                        {r.responses[0].finalText}
+                      </p>
+                    ) : null}
+                    {r.lastError ? <p className="mt-2 line-clamp-2 text-xs text-red-600">{r.lastError}</p> : null}
                   </div>
-
-                  <div className="col-span-2">
-                    {(() => {
-                      const badge = getStatusBadge(r);
-                      return (
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.classes}`}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StatusBadge review={r} />
+                    <svg
+                      className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
                     >
-                      {badge.label}
-                    </span>
-                      );
-                    })()}
-                    {r.lastError && (
-                      <Text variant="error" className="mt-1 line-clamp-2 text-xs">{r.lastError}</Text>
-                    )}
-                  </div>
-
-                  <div className="col-span-3">
-                    <Text variant="body" className="font-medium text-gray-900">
-                      {r.authorName ?? "—"}
-                    </Text>
-                    <Text variant="body" className="text-xs text-gray-500">
-                      {formatDateTime(r.createdAtGoogle ?? r.createdAt)}
-                    </Text>
-                  </div>
-
-                  <div className="col-span-5">
-                    <Text variant="body" className="line-clamp-2 text-gray-700">
-                      {r.comment ?? "— (no comment)"}
-                    </Text>
-                    {r.responses?.[0]?.finalText && (
-                      <div className="mt-2 rounded bg-gray-50 p-2">
-                        <Text variant="body" className="line-clamp-2 text-xs text-gray-600">
-                          <span className="font-medium">Response:</span> {r.responses[0].finalText}
-                        </Text>
-                      </div>
-                    )}
+                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                    </svg>
                   </div>
                 </button>
               ))}
@@ -441,14 +442,14 @@ export default function ReviewsPage() {
           )}
 
           {!loading && items.length > 0 ? (
-            <div className="border-t border-gray-100 px-6 py-4 text-center">
+            <div className="mt-2 border-t border-gray-100 px-3 pt-4 pb-1 text-center">
               {nextCursor ? (
                 <>
                   <div ref={sentinelRef} aria-hidden="true" />
                   <Button
                     type="button"
                     variant="outline"
-                    className="!w-auto px-5"
+                    className="!w-auto px-5 py-2"
                     isLoading={loadingMore}
                     onClick={() => {
                       setError(null);
@@ -459,80 +460,88 @@ export default function ReviewsPage() {
                   </Button>
                 </>
               ) : (
-                <Text variant="body" className="text-sm text-gray-500">
+                <p className="text-xs text-gray-400">
                   {items.length === 1 ? "That's the only review." : `That's all ${items.length} reviews.`}
-                </Text>
+                </p>
               )}
             </div>
           ) : null}
-        </div>
+        </Card>
 
-        {/* Modal simple */}
         {openId && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/30 p-4 py-8 backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/30 p-4 py-8 backdrop-blur-sm"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeReview();
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="review-dialog-title"
+              className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            >
               <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                <Text variant="h2" className="!text-lg">Review Details</Text>
-                <Button
-                  variant="outline"
-                  className="!w-auto !py-1.5 !px-3 text-sm font-normal"
-                  onClick={() => {
-                    setOpenId(null);
-                    setDetail(null);
-                  }}
+                <h2 id="review-dialog-title" className="text-base font-semibold text-gray-900">Review details</h2>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={closeReview}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
                 >
-                  Close
-                </Button>
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                  </svg>
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-6 py-6">
                 {detailLoading ? (
-                  <Text variant="body" className="text-gray-600">Loading details...</Text>
+                  <div className="animate-pulse space-y-3" aria-busy="true" aria-label="Loading review">
+                    <div className="h-4 w-40 rounded bg-gray-100" />
+                    <div className="h-3 w-full rounded bg-gray-100" />
+                    <div className="h-3 w-3/4 rounded bg-gray-100" />
+                    <div className="mt-6 h-24 rounded-xl bg-gray-100" />
+                  </div>
                 ) : !detail ? (
-                  <Text variant="body" className="text-gray-600">No data.</Text>
+                  <p className="text-sm text-gray-500">Couldn&apos;t load this review.</p>
                 ) : (
                   <div className="space-y-6">
-                    <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="text-gray-900 flex items-center gap-2">
-                          <span className="text-lg"><Stars n={detail.rating} /></span> <span className="text-sm text-gray-600">({detail.rating}/5)</span>
-                        </div>
-                        {(() => {
-                          const badge = getStatusBadge(detail);
-                          return (
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.classes}`}>
-                              {badge.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                      <div className="mt-4 space-y-2">
+                    <div>
+                      <div className="flex items-start justify-between gap-4">
                         <div>
-                          <Text variant="label" className="inline mr-2">Author:</Text>
-                          <Text variant="body" className="inline text-gray-900">{detail.authorName ?? "—"}</Text>
-                        </div>
-                        {detail.beforeAutomation && automationStartsAt ? (
-                          <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-600">
-                            This review was posted before automatic replies started on{" "}
-                            {formatDate(automationStartsAt)}, so it won&apos;t be answered automatically.
+                          <div className="flex items-center gap-2">
+                            <Stars n={detail.rating} size="h-4 w-4" />
+                            <span className="text-sm text-gray-500 tabular-nums">{detail.rating}/5</span>
                           </div>
-                        ) : null}
-                        <div>
-                          <Text variant="label" className="block mb-1">Comment:</Text>
-                          <Text variant="body" className="text-gray-700">{detail.comment ?? "—"}</Text>
+                          <p className="mt-2 text-sm font-medium text-gray-900">{detail.authorName || "Anonymous"}</p>
+                          <p className="text-xs text-gray-400">{formatDateTime(detail.createdAtGoogle ?? detail.createdAt)}</p>
                         </div>
+                        <StatusBadge review={detail} />
                       </div>
+                      <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+                        {detail.comment || "No comment, rating only."}
+                      </p>
+                      {detail.beforeAutomation && automationStartsAt ? (
+                        <p className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm text-gray-600">
+                          This review was posted before automatic replies started on {formatDate(automationStartsAt)}, so
+                          it won&apos;t be answered automatically.
+                        </p>
+                      ) : null}
+                      {detail.lastError ? (
+                        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{detail.lastError}</p>
+                      ) : null}
                     </div>
 
-                    <div className="rounded-xl border border-gray-100 p-6">
-                      <Text variant="subtitle" className="mb-4 font-semibold text-gray-900">Responses</Text>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Replies</p>
                       {detail.responses?.length ? (
-                        <div className="space-y-4">
+                        <div className="mt-3 space-y-3">
                           {draftResponse && (
-                            <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                              <div className="flex items-center justify-between text-xs text-blue-800 mb-3">
-                                <span className="font-medium uppercase tracking-wide">Draft</span>
-                                <span>{formatDateTime(draftResponse.createdAt)}</span>
+                            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                              <div className="mb-3 flex items-center justify-between text-xs">
+                                <span className="rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-800">Draft</span>
+                                <span className="text-blue-800/70">{formatDateTime(draftResponse.createdAt)}</span>
                               </div>
                               <Textarea
                                 label="Message"
@@ -546,36 +555,45 @@ export default function ReviewsPage() {
                           {detail.responses
                             .filter((resp) => resp.id !== draftResponse?.id)
                             .map((resp) => (
-                              <div key={resp.id} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                                <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                                  <span className="font-medium uppercase tracking-wide">Method: {resp.method}</span>
-                                  <span>{formatDateTime(resp.createdAt)}</span>
+                              <div key={resp.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                                <div className="mb-2 flex items-center justify-between text-xs">
+                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium capitalize text-gray-700">
+                                    {resp.method === "ai" ? "AI" : resp.method}
+                                  </span>
+                                  <span className="text-gray-400">{formatDateTime(resp.createdAt)}</span>
                                 </div>
-                                <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
-                                  {resp.finalText}
-                                </div>
+                                <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{resp.finalText}</div>
                               </div>
                             ))}
                         </div>
                       ) : (
-                        <Text variant="body" className="text-gray-500 italic">No responses yet.</Text>
+                        <div className="mt-3 rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
+                          No replies yet.
+                        </div>
                       )}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="border-t border-gray-100 px-6 py-4 flex justify-end gap-3">
-                {draftResponse && (
-                  <Button className="!w-auto" onClick={publish} disabled={publishing || detailLoading || !draftText.trim()}>
+              {draftResponse ? (
+                <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                  <Button variant="ghost" className="!w-auto px-4 py-2" onClick={closeReview}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="!w-auto px-4 py-2"
+                    onClick={publish}
+                    disabled={publishing || detailLoading || !draftText.trim()}
+                  >
                     {publishing ? "Publishing..." : "Approve & publish"}
                   </Button>
-                )}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
