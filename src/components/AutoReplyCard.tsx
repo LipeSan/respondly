@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Text } from "./Text";
+import { Card, CardHeader } from "./Card";
 import { Switch } from "./Switch";
 
 interface AutoReplyCardProps {
@@ -38,24 +38,23 @@ export function AutoReplyCard({ initialEnabled }: AutoReplyCardProps) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 hover:shadow-2xl transition-shadow duration-200">
-      <div className="flex items-center justify-between mb-2">
-        <Text variant="body" className="text-sm font-medium text-gray-500">
-          Auto-reply
-        </Text>
-        <div className={`p-1.5 rounded-md ${enabled ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500"}`}>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-          </svg>
-        </div>
-      </div>
-
-      <div className="flex items-end justify-between">
-        <Text variant="h2" className={`text-3xl font-bold ${enabled ? "text-blue-600" : "text-gray-400"}`}>
-          {enabled ? "ON" : "OFF"}
-        </Text>
-        <Switch checked={enabled} onCheckedChange={toggle} disabled={loading} />
-      </div>
-    </div>
+    <Card>
+      <CardHeader
+        title="Automatic replies"
+        subtitle={
+          enabled
+            ? "New reviews are answered automatically using your rules."
+            : "New reviews are synced but won't be answered until you turn this on."
+        }
+        action={
+          <div className="flex shrink-0 items-center gap-3">
+            <span className={`text-sm font-semibold ${enabled ? "text-green-600" : "text-gray-400"}`}>
+              {enabled ? "On" : "Off"}
+            </span>
+            <Switch checked={enabled} onCheckedChange={toggle} disabled={loading} aria-label="Automatic replies" />
+          </div>
+        }
+      />
+    </Card>
   );
 }

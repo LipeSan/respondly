@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Card, CardHeader } from "@/components/Card";
+import { ReviewRow, Stars } from "@/components/ReviewRow";
+import { ReviewDetailModal } from "@/components/ReviewDetailModal";
 import { Text } from "@/components/Text";
 import { formatDate } from "@/lib/date";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
@@ -20,6 +22,8 @@ type ReviewListItem = {
   createdAt: string;
   status?: "pending" | "responded" | "failed" | "skipped";
   beforeAutomation?: boolean;
+  replyText?: string | null;
+  lastError?: string | null;
 };
 
 type DashboardMetrics = {
@@ -79,24 +83,6 @@ function formatRelative(iso: string) {
 
 function formatShortDate(iso: string) {
   return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(iso));
-}
-
-function Stars({ n, size = "h-3.5 w-3.5" }: { n: number; size?: string }) {
-  return (
-    <span className="inline-flex gap-0.5" aria-label={`${n} out of 5 stars`}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <svg
-          key={i}
-          className={`${size} ${i <= n ? "text-yellow-400" : "text-gray-200"}`}
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      ))}
-    </span>
-  );
 }
 
 // ---- Automation status -----------------------------------------------------
@@ -192,36 +178,13 @@ function AutomationStatusBanner({ metrics }: { metrics: DashboardMetrics }) {
 
 // ---- Needs attention --------------------------------------------------------
 
-function ReviewRow({ review, badge }: { review: ReviewListItem; badge?: ReactNode }) {
-  return (
-    <Link
-      href={`/reviews?open=${encodeURIComponent(review.id)}`}
-      className="group flex items-start justify-between gap-4 rounded-xl px-3 py-3 transition-colors hover:bg-gray-50"
-    >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <Stars n={review.rating} />
-          <span className="text-sm font-medium text-gray-900">{review.authorName || "Anonymous"}</span>
-          <span className="text-xs text-gray-400">{formatShortDate(review.createdAt)}</span>
-        </div>
-        <p className="mt-1 line-clamp-2 text-sm text-gray-600">{review.comment || "No comment, rating only."}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {badge}
-        <svg
-          className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-        </svg>
-      </div>
-    </Link>
-  );
-}
-
-function NeedsAttention({ attention }: { attention: DashboardMetrics["attention"] }) {
+function NeedsAttention({
+  attention,
+  onOpenReview,
+}: {
+  attention: DashboardMetrics["attention"];
+  onOpenReview: (id: string) => void;
+}) {
   const total = attention.draftsCount + attention.lowRatingCount + attention.failedCount;
   if (total === 0) return null;
 
@@ -247,6 +210,7 @@ function NeedsAttention({ attention }: { attention: DashboardMetrics["attention"
                 <ReviewRow
                   key={r.id}
                   review={r}
+                  onClick={() => onOpenReview(r.id)}
                   badge={<span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">Draft</span>}
                 />
               ))}
@@ -263,6 +227,7 @@ function NeedsAttention({ attention }: { attention: DashboardMetrics["attention"
                 <ReviewRow
                   key={r.id}
                   review={r}
+                  onClick={() => onOpenReview(r.id)}
                   badge={
                     r.status === "failed" ? (
                       <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">Failed</span>
@@ -473,6 +438,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [noBusiness, setNoBusiness] = useState(false);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [openReviewId, setOpenReviewId] = useState<string | null>(null);
 
   const load = useCallback(
     async (range: RangeDays) => {
@@ -577,7 +543,7 @@ export default function DashboardPage() {
           <div className={`space-y-6 transition-opacity ${refreshing ? "opacity-60" : ""}`}>
             <AutomationStatusBanner metrics={metrics} />
 
-            <NeedsAttention attention={metrics.attention} />
+            <NeedsAttention attention={metrics.attention} onOpenReview={setOpenReviewId} />
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <KpiCard
@@ -633,7 +599,12 @@ export default function DashboardPage() {
                   </p>
                 ) : (
                   metrics.recentReviews.map((r) => (
-                    <ReviewRow key={r.id} review={r} badge={<RecentStatusBadge review={r} />} />
+                    <ReviewRow
+                      key={r.id}
+                      review={r}
+                      onClick={() => setOpenReviewId(r.id)}
+                      badge={<RecentStatusBadge review={r} />}
+                    />
                   ))
                 )}
               </div>
@@ -645,6 +616,13 @@ export default function DashboardPage() {
             </Card>
           </div>
         ) : null}
+
+        <ReviewDetailModal
+          reviewId={openReviewId}
+          automationStartsAt={metrics?.automation.connectedAt}
+          onClose={() => setOpenReviewId(null)}
+          onPublished={() => void load(rangeDays)}
+        />
       </main>
     </div>
   );

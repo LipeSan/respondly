@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Text } from "@/components/Text";
 import { Button } from "@/components/Button";
+import { Card } from "@/components/Card";
 import { Select } from "@/components/Select";
 import { Modal } from "@/components/Modal";
 
@@ -33,6 +34,81 @@ async function safeJson(res: Response) {
     } catch {
         return { error: text };
     }
+}
+
+// Card header with a numbered step marker that turns into a check once the
+// step is done.
+function StepHeader({
+    step,
+    done,
+    title,
+    subtitle,
+    action,
+}: {
+    step: string;
+    done?: boolean;
+    title: string;
+    subtitle?: string;
+    action?: ReactNode;
+}) {
+    return (
+        <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+                <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                        done ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
+                    }`}
+                >
+                    {done ? (
+                        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                        </svg>
+                    ) : (
+                        step
+                    )}
+                </span>
+                <div>
+                    <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+                    {subtitle ? <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p> : null}
+                </div>
+            </div>
+            {action}
+        </div>
+    );
+}
+
+function ReloadButton({ onClick, loading, disabled }: { onClick: () => void; loading: boolean; disabled?: boolean }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={loading || disabled}
+            aria-label="Reload"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60"
+        >
+            <svg className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" />
+            </svg>
+        </button>
+    );
+}
+
+function FieldSkeleton() {
+    return (
+        <div className="mt-5 animate-pulse space-y-2" aria-busy="true">
+            <div className="h-3 w-28 rounded bg-gray-100" />
+            <div className="h-11 rounded-lg bg-gray-100" />
+        </div>
+    );
+}
+
+function EmptyState({ title, detail }: { title: string; detail?: string }) {
+    return (
+        <div className="mt-5 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center">
+            <p className="text-sm font-medium text-gray-700">{title}</p>
+            {detail ? <p className="mt-1 max-w-xs text-sm text-gray-500">{detail}</p> : null}
+        </div>
+    );
 }
 
 export default function GoogleSetupPage() {
@@ -229,76 +305,47 @@ export default function GoogleSetupPage() {
 
     return (
         <div className="pb-12">
-            <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                         <Text variant="h1">Connect Google Business</Text>
-                        <Text variant="subtitle" className="mt-2">
-                            Select the account and location for your Google Business Profile.
-                        </Text>
+                        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-green-600">
+                            Choose the account and location Respondly should manage.
+                        </p>
                     </div>
-
-                    <div className="w-auto">
-                        <Button
-                            variant="outline"
-                            className="!w-auto inline-flex items-center px-4 py-2"
-                            onClick={() => router.push("/dashboard")}
-                        >
-                            Back
-                        </Button>
-                    </div>
+                    <Button variant="outline" className="!w-auto px-4 py-2" onClick={() => router.push("/configuration")}>
+                        Back to configuration
+                    </Button>
                 </div>
 
-                {error && (
-                    <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 p-6">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-red-100 rounded-full text-red-600">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                </svg>
-                            </div>
-                            <Text variant="body" className="text-red-700 font-medium">{error}</Text>
-                        </div>
+                {error ? (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-red-800">{error}</p>
+                        <Button variant="outline" className="!w-auto bg-white px-4 py-2" onClick={loadAccounts}>
+                            Try again
+                        </Button>
                     </div>
-                )}
+                ) : null}
 
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    {/* Accounts */}
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                                    <span className="font-bold">1</span>
-                                </div>
-                                <Text variant="subtitle" className="font-bold text-gray-900">Accounts</Text>
-                            </div>
-                            <Button
-                                variant="outline"
-                                className="!w-auto !py-1.5 !px-3 text-xs"
-                                onClick={loadAccounts}
-                                disabled={loadingAccounts}
-                            >
-                                {loadingAccounts ? "..." : "Reload"}
-                            </Button>
-                        </div>
+                <div className="grid gap-6 md:grid-cols-2">
+                    <Card>
+                        <StepHeader
+                            step="1"
+                            done={Boolean(selectedAccount)}
+                            title="Account"
+                            subtitle="The Google account that owns your Business Profile."
+                            action={<ReloadButton onClick={loadAccounts} loading={loadingAccounts} />}
+                        />
 
                         {loadingAccounts ? (
-                            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                                <svg className="animate-spin h-8 w-8 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <Text variant="body">Loading accounts...</Text>
-                            </div>
+                            <FieldSkeleton />
                         ) : accounts.length === 0 ? (
-                            <div className="py-4 text-center">
-                                <Text variant="body" className="text-gray-500">
-                                    No accounts found. Make sure this Google account has a Business Profile.
-                                </Text>
-                            </div>
+                            <EmptyState
+                                title="No accounts found"
+                                detail="Make sure this Google account has a Business Profile."
+                            />
                         ) : (
-                            <div className="mt-4 space-y-3">
+                            <div className="mt-5">
                                 <Select
                                     id="google-account"
                                     label="Select an account"
@@ -311,134 +358,95 @@ export default function GoogleSetupPage() {
                                         </option>
                                     ))}
                                 </Select>
-
-                                <Text variant="body" className="text-xs text-gray-500">
-                                    Tip: if multiple appear, choose the one that matches your business.
-                                </Text>
+                                <p className="mt-2 text-xs text-gray-500">
+                                    If several appear, choose the one that matches your business.
+                                </p>
                             </div>
                         )}
-                    </div>
+                    </Card>
 
-                    {/* Locations */}
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                                    <span className="font-bold">2</span>
-                                </div>
-                                <Text variant="subtitle" className="font-bold text-gray-900">Locations</Text>
-                            </div>
-                            <Button
-                                variant="outline"
-                                className="!w-auto !py-1.5 !px-3 text-xs"
-                                onClick={() => selectedAccount && loadLocations(selectedAccount)}
-                                disabled={loadingLocations || !selectedAccount}
-                            >
-                                {loadingLocations ? "..." : "Reload"}
-                            </Button>
-                        </div>
+                    <Card>
+                        <StepHeader
+                            step="2"
+                            done={Boolean(selectedLocation)}
+                            title="Location"
+                            subtitle="Where reviews will be synced from."
+                            action={
+                                <ReloadButton
+                                    onClick={() => selectedAccount && loadLocations(selectedAccount)}
+                                    loading={loadingLocations}
+                                    disabled={!selectedAccount}
+                                />
+                            }
+                        />
 
                         {!selectedAccount ? (
-                            <div className="py-8 text-center">
-                                <Text variant="body" className="text-gray-500">Select an account first.</Text>
-                            </div>
+                            <EmptyState title="Select an account first" />
                         ) : loadingLocations ? (
-                            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                                <svg className="animate-spin h-8 w-8 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <Text variant="body">Loading locations...</Text>
-                            </div>
+                            <FieldSkeleton />
                         ) : locations.length === 0 ? (
-                            <div className="py-8 text-center">
-                                <Text variant="body" className="text-gray-500">
-                                    No locations found for this account.
-                                </Text>
-                            </div>
+                            <EmptyState title="No locations found" detail="This account doesn't have any business locations." />
                         ) : (
-                            <div className="mt-4 space-y-4">
-                                <div>
-                                    <Select
-                                        id="google-location"
-                                        label="Select a location"
-                                        value={selectedLocation}
-                                        onChange={(e) => setSelectedLocation(e.target.value)}
-                                    >
-                                        {locations.map((l) => (
-                                            <option key={l.name} value={l.name}>
-                                                {l.title ? `${l.title} (${l.name})` : l.name}
-                                            </option>
-                                        ))}
-                                    </Select>
-                                </div>
+                            <div className="mt-5 space-y-4">
+                                <Select
+                                    id="google-location"
+                                    label="Select a location"
+                                    value={selectedLocation}
+                                    onChange={(e) => setSelectedLocation(e.target.value)}
+                                >
+                                    {locations.map((l) => (
+                                        <option key={l.name} value={l.name}>
+                                            {l.title ? `${l.title} (${l.name})` : l.name}
+                                        </option>
+                                    ))}
+                                </Select>
 
-                                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                                    <Text variant="body" className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</Text>
-                                    <Text variant="body" className="font-medium text-gray-900">
-                                        {selectedLocationObj?.title ?? "—"}
-                                    </Text>
-                                    <Text variant="body" className="text-xs text-gray-500 mt-1 font-mono truncate">
-                                        {selectedLocationObj?.name ?? ""}
-                                    </Text>
+                                <div className="rounded-xl bg-gray-50 px-4 py-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Selected</p>
+                                    <p className="mt-1 text-sm font-medium text-gray-900">{selectedLocationObj?.title ?? "—"}</p>
+                                    <p className="mt-0.5 truncate font-mono text-xs text-gray-500">{selectedLocationObj?.name ?? ""}</p>
                                 </div>
                             </div>
                         )}
-                    </div>
+                    </Card>
                 </div>
 
-                {/* Save */}
-                <div className="mt-6 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 bg-green-50 rounded-lg text-green-600 mt-1">
-                                <span className="font-bold">3</span>
-                            </div>
-                            <div>
-                                <Text variant="subtitle" className="font-bold text-gray-900">Save configuration</Text>
-                                <Text variant="body" className="mt-1 text-gray-600">
-                                    This defines which location will be used to sync reviews.
-                                    Automatic replies apply to reviews posted from the first sync onwards;
-                                    older reviews stay visible but won&apos;t be answered automatically.
-                                </Text>
-                            </div>
-                        </div>
+                <Card>
+                    <StepHeader
+                        step="3"
+                        title="Save and sync"
+                        subtitle="Automatic replies apply to reviews posted from the first sync onwards. Older reviews stay visible but won't be answered automatically."
+                        action={
+                            <Button
+                                className="!w-auto shrink-0 px-4 py-2"
+                                onClick={saveSelection}
+                                disabled={saving || !selectedAccount || !selectedLocation}
+                            >
+                                {saving ? "Saving..." : "Save location"}
+                            </Button>
+                        }
+                    />
+                </Card>
 
-                        <Button
-                            className="w-full md:w-auto min-w-[150px]"
-                            onClick={saveSelection}
-                            disabled={saving || !selectedAccount || !selectedLocation}
-                        >
-                            {saving ? "Saving..." : "Save location"}
-                        </Button>
+                <div className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 className="text-base font-semibold text-gray-900">Remove connection</h2>
+                        <p className="mt-0.5 text-sm text-gray-500">
+                            Disconnects your Google account and turns off automatic replies.
+                        </p>
                     </div>
-
-                    <div className="mt-6 flex flex-col md:flex-row md:items-center justify-between gap-6 border-t border-gray-100 pt-6">
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 bg-red-50 rounded-lg text-red-600 mt-1">
-                                <span className="font-bold">!</span>
-                            </div>
-                            <div>
-                                <Text variant="subtitle" className="font-bold text-gray-900">Remove connection</Text>
-                                <Text variant="body" className="mt-1 text-gray-600">
-                                    This removes the connected account and disables the auto responder.
-                                </Text>
-                            </div>
-                        </div>
-
-                        <Button
-                            variant="outline"
-                            className="w-full md:w-auto min-w-[150px] border-red-200 text-red-700 hover:bg-red-50"
-                            onClick={() => {
-                                setDisconnectModalOpen(true);
-                                setDisconnectState("idle");
-                                setDisconnectError(null);
-                            }}
-                            disabled={disconnecting}
-                        >
-                            Disconnect
-                        </Button>
-                    </div>
+                    <Button
+                        variant="outline"
+                        className="!w-auto shrink-0 border-red-200 px-4 py-2 text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                            setDisconnectModalOpen(true);
+                            setDisconnectState("idle");
+                            setDisconnectError(null);
+                        }}
+                        disabled={disconnecting}
+                    >
+                        Disconnect
+                    </Button>
                 </div>
 
                 <Modal
@@ -500,27 +508,17 @@ export default function GoogleSetupPage() {
                             <Text variant="body" className="text-gray-700">
                                 Location saved successfully and sync completed.
                             </Text>
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div>
-                                        <Text variant="label" className="text-xs text-gray-500">Imported</Text>
-                                        <Text variant="body" className="font-semibold text-gray-900">
-                                            {Number(saveSync?.imported ?? 0)}
-                                        </Text>
+                            <div className="grid grid-cols-3 gap-3">
+                                {([
+                                    ["Imported", saveSync?.imported],
+                                    ["Updated", saveSync?.updated],
+                                    ["Fetched", saveSync?.totalFetched],
+                                ] as const).map(([label, value]) => (
+                                    <div key={label} className="rounded-xl bg-gray-50 px-4 py-3">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+                                        <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900 tabular-nums">{Number(value ?? 0)}</p>
                                     </div>
-                                    <div>
-                                        <Text variant="label" className="text-xs text-gray-500">Updated</Text>
-                                        <Text variant="body" className="font-semibold text-gray-900">
-                                            {Number(saveSync?.updated ?? 0)}
-                                        </Text>
-                                    </div>
-                                    <div>
-                                        <Text variant="label" className="text-xs text-gray-500">Fetched</Text>
-                                        <Text variant="body" className="font-semibold text-gray-900">
-                                            {Number(saveSync?.totalFetched ?? 0)}
-                                        </Text>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         </div>
                     ) : saveState === "error" ? (

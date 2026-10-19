@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/Button";
+import { Card, CardHeader } from "@/components/Card";
+import { PlanCard } from "@/components/PlanCard";
 import { Input } from "@/components/Input";
 import { Modal } from "@/components/Modal";
 import { Text } from "@/components/Text";
@@ -49,6 +51,71 @@ function formatMoney(amount: number | null, currency: string | null) {
     } catch {
         return `${(amount / 100).toFixed(2)} ${ccy}`;
     }
+}
+
+const disputeStatuses = new Set([
+    "needs_response",
+    "warning_needs_response",
+    "under_review",
+    "warning_under_review",
+    "warning_closed",
+    "won",
+    "lost",
+    "dispute",
+]);
+
+function getPaymentStatus(status: string) {
+    const isDispute = disputeStatuses.has(status);
+    const classes =
+        status === "paid"
+            ? "bg-emerald-100 text-emerald-800"
+            : status === "payment_failed"
+                ? "bg-red-100 text-red-800"
+                : status === "refunded"
+                    ? "bg-gray-100 text-gray-800"
+                    : isDispute && (status === "won" || status === "warning_closed")
+                        ? "bg-gray-100 text-gray-800"
+                        : isDispute && status === "lost"
+                            ? "bg-red-100 text-red-800"
+                            : isDispute && (status === "under_review" || status === "warning_under_review")
+                                ? "bg-amber-100 text-amber-800"
+                                : isDispute
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-amber-100 text-amber-800";
+    const labels: Record<string, string> = {
+        payment_failed: "Payment failed",
+        paid: "Paid",
+        refunded: "Refunded",
+        needs_response: "Dispute: needs response",
+        warning_needs_response: "Dispute warning: needs response",
+        under_review: "Dispute: under review",
+        warning_under_review: "Dispute warning: under review",
+        warning_closed: "Dispute warning: closed",
+        won: "Dispute: won",
+        lost: "Dispute: lost",
+        dispute: "Dispute",
+    };
+    return { label: labels[status] ?? status, classes };
+}
+
+const planBenefits = [
+    "Automatic replies to Google reviews",
+    "Smart rules based on star rating",
+    "Unlimited templates",
+    "24/7 automation",
+    "AI-powered responses in Pro",
+];
+
+function SubscriptionSkeleton() {
+    return (
+        <div className="animate-pulse space-y-6" aria-busy="true" aria-label="Loading subscription">
+            <div className="grid gap-6 lg:grid-cols-3">
+                <div className="h-56 rounded-2xl bg-gray-100 lg:col-span-2" />
+                <div className="h-56 rounded-2xl bg-gray-100" />
+            </div>
+            <div className="h-48 rounded-2xl bg-gray-100" />
+        </div>
+    );
 }
 
 export default function SubscriptionPage() {
@@ -170,66 +237,7 @@ export default function SubscriptionPage() {
         }
     }
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="flex flex-col items-center">
-                    <svg className="animate-spin h-10 w-10 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <Text variant="body" className="font-medium">Loading subscription...</Text>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
-                <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-red-100 p-8 text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
-                    </div>
-                    <Text variant="subtitle" className="mb-2 font-bold text-gray-900">Error loading subscription</Text>
-                    <Text variant="body" className="mb-6">{error}</Text>
-                    <div className="flex justify-center gap-3">
-                        <Button onClick={() => load()}>
-                            Try again
-                        </Button>
-                        <Button variant="outline" onClick={() => router.push("/dashboard")}>
-                            Back to dashboard
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (!business) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-                <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                        </svg>
-                    </div>
-                    <Text variant="h2" className="mb-2">No business found</Text>
-                    <Text variant="body" className="mb-8">
-                        You need to create a business before managing your subscription.
-                    </Text>
-                    <Button onClick={() => router.push("/onboarding")}>
-                        Go to Onboarding
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-
-    const subscription = business.subscription;
+    const subscription = business?.subscription ?? null;
     const planLabel = subscription?.plan === "pro" ? "Pro" : subscription?.plan === "starter" ? "Starter" : "Free";
     const statusRaw = subscription?.status ?? "none";
     const cancelAt = subscription?.cancelAt ?? null;
@@ -239,6 +247,7 @@ export default function SubscriptionPage() {
             ? new Date(subscription.currentPeriodEnd)
             : null;
     const isCancelScheduled = Boolean(subscription?.cancelAtPeriodEnd && statusRaw !== "canceled");
+    const hasActiveSubscription = statusRaw === "active" || statusRaw === "trialing" || isCancelScheduled;
 
     let statusLabel = "No active subscription";
     let badgeClasses = "bg-gray-100 border-gray-200 text-gray-700";
@@ -271,298 +280,229 @@ export default function SubscriptionPage() {
         dotClasses = "bg-amber-500";
     }
 
+    const periodDate = isCancelScheduled ? cancelAtDate : subscription?.currentPeriodEnd ?? null;
+
     return (
-        <div className="min-h-screen bg-gray-50">
-            <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="pb-12">
+            <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                         <Text variant="h1">Manage subscription</Text>
-                        <Text variant="subtitle" className="mt-2">
-                            Review your current plan, renewal date, and billing status.
-                        </Text>
+                        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-green-600">
+                            Your plan, renewal date, and billing history.
+                        </p>
                     </div>
+                    <Button variant="outline" className="!w-auto px-4 py-2" onClick={() => router.push("/configuration")}>
+                        Back to configuration
+                    </Button>
+                </div>
 
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            className="!w-auto"
-                            onClick={() => router.push("/dashboard")}
-                        >
-                            Back to dashboard
+                {error ? (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-red-800">Couldn&apos;t load your subscription: {error}</p>
+                        <Button variant="outline" className="!w-auto bg-white px-4 py-2" onClick={() => load()}>
+                            Try again
                         </Button>
                     </div>
-                </div>
+                ) : null}
 
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 md:col-span-2">
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 border text-xs font-semibold uppercase tracking-wide ${badgeClasses}`}>
-                                    <span className={`w-2 h-2 rounded-full animate-pulse ${dotClasses}`} />
-                                    <span>{statusLabel}</span>
+                {loading ? (
+                    <SubscriptionSkeleton />
+                ) : error ? null : !business ? (
+                    <div className="flex min-h-[50vh] items-center justify-center">
+                        <Card className="w-full max-w-md text-center">
+                            <Text variant="h2">Let&apos;s set up your business</Text>
+                            <p className="mt-2 text-sm text-gray-500">
+                                You need to create a business before managing your subscription.
+                            </p>
+                            <Button className="mt-6" onClick={() => router.push("/onboarding")}>
+                                Start setup
+                            </Button>
+                        </Card>
+                    </div>
+                ) : (
+                    <>
+                        <div className="grid gap-6 lg:grid-cols-3">
+                            <PlanCard active={hasActiveSubscription} className="lg:col-span-2">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${badgeClasses}`}>
+                                            <span className={`h-1.5 w-1.5 rounded-full ${dotClasses}`} />
+                                            {statusLabel}
+                                        </span>
+                                        <p className="mt-3 text-2xl font-bold tracking-tight text-gray-900">
+                                            {planLabel === "Free" ? "Free plan" : `${planLabel} plan`}
+                                        </p>
+                                        <p className="mt-1 text-sm text-gray-600">{business.name}</p>
+                                    </div>
+                                    <p className="hidden max-w-[12rem] text-right text-xs text-gray-500 md:block">
+                                        Stripe secures all payments and subscriptions.
+                                    </p>
                                 </div>
-                                <Text variant="h2" className="mt-3 text-xl font-bold text-gray-900">
-                                    {planLabel === "Free" ? "Free plan" : `${planLabel} plan`}
-                                </Text>
-                                <Text variant="body" className="mt-1 text-sm text-gray-600">
-                                    {business.name}
-                                </Text>
-                                {(isCancelScheduled ? cancelAtDate : subscription?.currentPeriodEnd) && (
-                                    <Text variant="body" className="mt-1 text-xs text-gray-500">
-                                        {isCancelScheduled ? "Cancels on " : "Renews on "}
-                                        {formatDate(cancelAtDate ?? subscription?.currentPeriodEnd)}
-                                    </Text>
-                                )}
-                            </div>
 
-                            <div className="hidden md:flex flex-col items-end gap-2">
-                                <Text variant="body" className="text-xs text-gray-500">
-                                    Stripe secures all payments and subscriptions.
-                                </Text>
-                            </div>
+                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                    <div className="rounded-xl bg-white/70 px-4 py-3 backdrop-blur">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Plan</p>
+                                        <p className="mt-1 text-sm font-semibold text-gray-900">{planLabel}</p>
+                                    </div>
+                                    <div className="rounded-xl bg-white/70 px-4 py-3 backdrop-blur">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Status</p>
+                                        <p className="mt-1 text-sm font-semibold text-gray-900">{statusLabel}</p>
+                                    </div>
+                                    <div className="rounded-xl bg-white/70 px-4 py-3 backdrop-blur">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            {isCancelScheduled ? "Ends on" : "Next renewal"}
+                                        </p>
+                                        <p className="mt-1 text-sm font-semibold text-gray-900">
+                                            {periodDate ? formatDate(periodDate) : "Not scheduled"}
+                                        </p>
+                                    </div>
+                                </div>
+                            </PlanCard>
+
+                            <Card>
+                                <CardHeader title="Plan benefits" subtitle="What's included in your subscription." />
+                                <ul className="mt-4 space-y-2.5">
+                                    {planBenefits.map((benefit) => (
+                                        <li key={benefit} className="flex items-start gap-2.5 text-sm text-gray-700">
+                                            <svg className="mt-0.5 h-4 w-4 shrink-0 text-green-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                            </svg>
+                                            {benefit}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Card>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                                <Text variant="label" className="text-xs text-gray-500">Plan</Text>
-                                <Text variant="body" className="mt-1 font-semibold text-gray-900">
-                                    {planLabel}
-                                </Text>
-                            </div>
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                                <Text variant="label" className="text-xs text-gray-500">Status</Text>
-                                <Text variant="body" className="mt-1 font-semibold text-gray-900">
-                                    {statusLabel}
-                                </Text>
-                            </div>
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                                <Text variant="label" className="text-xs text-gray-500">{isCancelScheduled ? "Ends on" : "Next renewal"}</Text>
-                                <Text variant="body" className="mt-1 font-semibold text-gray-900">
-                                    {isCancelScheduled
-                                        ? cancelAtDate
-                                            ? formatDate(cancelAtDate)
-                                            : "Not scheduled"
-                                        : subscription?.currentPeriodEnd
-                                            ? formatDate(subscription.currentPeriodEnd)
-                                        : "Not scheduled"}
-                                </Text>
-                            </div>
-                        </div>
-                    </div>
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <Card>
+                                <CardHeader title="Billing actions" subtitle="Changes are reflected in your account right away." />
+                                <div className="mt-5 flex flex-wrap gap-3">
+                                    <Button className="!w-auto px-4 py-2" onClick={() => setShowPlans((v) => !v)}>
+                                        {showPlans ? "Hide plans" : "Change plan"}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="!w-auto px-4 py-2"
+                                        disabled={canceling || !subscription || isCancelScheduled || statusRaw === "canceled"}
+                                        onClick={() => setConfirmCancelOpen(true)}
+                                    >
+                                        {canceling ? "Canceling..." : isCancelScheduled ? "Cancellation scheduled" : "Cancel subscription"}
+                                    </Button>
+                                </div>
+                            </Card>
 
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 flex flex-col justify-between">
-                        <div>
-                            <Text variant="subtitle" className="font-bold text-gray-900">Plan benefits</Text>
-                            <Text variant="body" className="mt-2 text-sm text-gray-600">
-                                See what is included in your subscription so you can choose the best plan for your business.
-                            </Text>
-
-                            <ul className="mt-4 text-sm text-gray-700 space-y-1">
-                                <li>• Automatic replies to Google reviews</li>
-                                <li>• Smart rules based on star rating</li>
-                                <li>• Unlimited templates</li>
-                                <li>• 24/7 automation</li>
-                                <li>• AI-powered responses in Pro</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-6 bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                    <Text variant="subtitle" className="font-bold text-gray-900">Payment history</Text>
-                    <Text variant="body" className="mt-2 text-sm text-gray-600">
-                        Your latest invoices and payment events.
-                    </Text>
-
-                    <div className="mt-4 overflow-x-auto">
-                        {paymentHistory.length === 0 ? (
-                            <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                                <Text variant="body" className="text-sm text-gray-700">
-                                    No payment history yet.
-                                </Text>
-                            </div>
-                        ) : (
-                            <table className="min-w-full text-sm">
-                                <thead>
-                                    <tr className="text-left text-xs text-gray-500">
-                                        <th className="py-2 pr-4 font-semibold">Date</th>
-                                        <th className="py-2 pr-4 font-semibold">Status</th>
-                                        <th className="py-2 pr-4 font-semibold">Amount</th>
-                                        <th className="py-2 pr-4 font-semibold">Last update</th>
-                                        <th className="py-2 pr-4 font-semibold">Invoice</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {paymentHistory.map((p) => {
-                                        const baseWhen = p.paidAt ?? p.createdAt;
-                                        const latestWhen = p.lastEvent?.createdAt ?? baseWhen;
-                                        const status = p.lastEvent?.status ?? p.status;
-                                        const link = p.hostedInvoiceUrl ?? p.invoicePdf;
-                                        const isDispute =
-                                            status === "needs_response" ||
-                                            status === "warning_needs_response" ||
-                                            status === "under_review" ||
-                                            status === "warning_under_review" ||
-                                            status === "warning_closed" ||
-                                            status === "won" ||
-                                            status === "lost" ||
-                                            status === "dispute";
-                                        const badge =
-                                            status === "paid"
-                                                ? "bg-emerald-100 text-emerald-800"
-                                                : status === "payment_failed"
-                                                    ? "bg-red-100 text-red-800"
-                                                : status === "refunded"
-                                                        ? "bg-gray-100 text-gray-800"
-                                                : isDispute && (status === "won" || status === "warning_closed")
-                                                    ? "bg-gray-100 text-gray-800"
-                                                : isDispute && status === "lost"
-                                                    ? "bg-red-100 text-red-800"
-                                                : isDispute && (status === "under_review" || status === "warning_under_review")
-                                                    ? "bg-amber-100 text-amber-800"
-                                                : isDispute
-                                                    ? "bg-red-100 text-red-800"
-                                                        : "bg-amber-100 text-amber-800";
-                                        const statusLabel =
-                                            status === "payment_failed"
-                                                ? "Payment failed"
-                                                : status === "paid"
-                                                    ? "Paid"
-                                                    : status === "refunded"
-                                                        ? "Refunded"
-                                            : status === "needs_response"
-                                                ? "Dispute: needs response"
-                                            : status === "warning_needs_response"
-                                                ? "Dispute warning: needs response"
-                                            : status === "under_review"
-                                                ? "Dispute: under review"
-                                            : status === "warning_under_review"
-                                                ? "Dispute warning: under review"
-                                            : status === "warning_closed"
-                                                ? "Dispute warning: closed"
-                                            : status === "won"
-                                                ? "Dispute: won"
-                                            : status === "lost"
-                                                ? "Dispute: lost"
-                                            : status === "dispute"
-                                                ? "Dispute"
-                                                        : status;
-
-                                        return (
-                                            <tr key={p.id} className="text-gray-700">
-                                                <td className="py-3 pr-4 whitespace-nowrap">
-                                                    {formatDateTime(baseWhen)}
-                                                </td>
-                                                <td className="py-3 pr-4 whitespace-nowrap">
-                                                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badge}`}>
-                                                        {statusLabel}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 pr-4 whitespace-nowrap">
-                                                    {formatMoney(p.amount, p.currency)}
-                                                </td>
-                                                <td className="py-3 pr-4 whitespace-nowrap">
-                                                    {p.lastEvent ? (
-                                                        <div className="flex flex-col">
-                                                            <span className="text-gray-700">
-                                                                {formatDateTime(latestWhen)}
-                                                            </span>
-                                                            <span className="text-gray-500 text-xs">
-                                                                {p.lastEvent.status} · {p.lastEvent.stripeEventType}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-500">—</span>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 pr-4 whitespace-nowrap">
-                                                    {link ? (
-                                                        <a
-                                                            href={link}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="text-blue-700 underline underline-offset-2"
-                                                        >
-                                                            View
-                                                        </a>
-                                                    ) : p.stripeInvoiceId ? (
-                                                        <span className="text-gray-500">{p.stripeInvoiceId}</span>
-                                                    ) : (
-                                                        "—"
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                </div>
-
-                <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                        <Text variant="subtitle" className="font-bold text-gray-900">Billing actions</Text>
-                        <Text variant="body" className="mt-2 text-sm text-gray-600">
-                            Manage your subscription lifecycle. Changes will be reflected immediately in your account.
-                        </Text>
-
-                        <div className="mt-4 flex flex-wrap gap-3">
-                            <Button
-                                variant="primary"
-                                className="!w-auto"
-                                onClick={() => setShowPlans((v) => !v)}
-                            >
-                                {showPlans ? "Hide plans" : "Change plan"}
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="!w-auto"
-                                disabled={canceling || !subscription || isCancelScheduled || statusRaw === "canceled"}
-                                onClick={() => setConfirmCancelOpen(true)}
-                            >
-                                {canceling ? "Canceling..." : isCancelScheduled ? "Cancellation scheduled" : "Cancel subscription"}
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                        <Text variant="subtitle" className="font-bold text-gray-900">Need to update payment details?</Text>
-                        <Text variant="body" className="mt-2 text-sm text-gray-600">
-                            Soon you will be able to update your payment method directly from a secure Stripe portal.
-                            For now, reach out to support and we will help you with any changes.
-                        </Text>
-                    </div>
-                </div>
-
-                {showPlans && (
-                    <div className="mt-6">
-                        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                            <Text variant="subtitle" className="font-bold text-gray-900">Choose your plan</Text>
-                            <Text variant="body" className="mt-2 text-sm text-gray-600">
-                                Select a new plan below. You will be redirected to a secure Stripe checkout.
-                            </Text>
-                            <div className="mt-4 max-w-md">
-                                <Input
-                                    id="subscriptionInviteCode"
-                                    name="subscriptionInviteCode"
-                                    type="text"
-                                    label="Trial invite code (optional)"
-                                    placeholder="e.g. VIP90"
-                                    value={inviteCode}
-                                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                            <Card>
+                                <CardHeader
+                                    title="Payment details"
+                                    subtitle="Soon you'll be able to update your payment method from a secure Stripe portal. For now, reach out to support and we'll help with any changes."
                                 />
-                                <Text variant="body" className="mt-2 text-xs text-gray-500">
-                                    Use a VIP invite here for extended trial days. Stripe promotion codes stay on the Stripe checkout page.
-                                </Text>
-                            </div>
-                            <BillingPlans
-                                subscribing={subscribing}
-                                onSubscribe={subscribe}
-                                currentPlan={subscription?.plan === "starter" || subscription?.plan === "pro" ? subscription.plan : null}
-                            />
+                            </Card>
                         </div>
-                    </div>
+
+                        {showPlans ? (
+                            <PlanCard active={false}>
+                                <CardHeader
+                                    title="Choose your plan"
+                                    subtitle="You'll be redirected to a secure Stripe checkout."
+                                />
+                                <div className="mt-5 max-w-md">
+                                    <Input
+                                        id="subscriptionInviteCode"
+                                        name="subscriptionInviteCode"
+                                        type="text"
+                                        label="Trial invite code (optional)"
+                                        placeholder="e.g. VIP90"
+                                        value={inviteCode}
+                                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                    />
+                                    <p className="mt-2 text-xs text-gray-500">
+                                        Use a VIP invite here for extended trial days. Stripe promotion codes stay on the Stripe checkout page.
+                                    </p>
+                                </div>
+                                <BillingPlans
+                                    subscribing={subscribing}
+                                    onSubscribe={subscribe}
+                                    currentPlan={subscription?.plan === "starter" || subscription?.plan === "pro" ? subscription.plan : null}
+                                />
+                            </PlanCard>
+                        ) : null}
+
+                        <Card>
+                            <CardHeader title="Payment history" subtitle="Your latest invoices and payment events." />
+                            {paymentHistory.length === 0 ? (
+                                <div className="mt-5 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center">
+                                    <p className="text-sm font-medium text-gray-700">No payments yet</p>
+                                    <p className="mt-1 max-w-xs text-sm text-gray-500">Invoices will appear here after your first charge.</p>
+                                </div>
+                            ) : (
+                                <div className="-mx-6 mt-4 overflow-x-auto px-6">
+                                    <table className="min-w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                                <th className="py-2 pr-4 font-semibold">Date</th>
+                                                <th className="py-2 pr-4 font-semibold">Status</th>
+                                                <th className="py-2 pr-4 font-semibold">Amount</th>
+                                                <th className="py-2 pr-4 font-semibold">Last update</th>
+                                                <th className="py-2 font-semibold">Invoice</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {paymentHistory.map((p) => {
+                                                const baseWhen = p.paidAt ?? p.createdAt;
+                                                const latestWhen = p.lastEvent?.createdAt ?? baseWhen;
+                                                const paymentStatus = getPaymentStatus(p.lastEvent?.status ?? p.status);
+                                                const link = p.hostedInvoiceUrl ?? p.invoicePdf;
+
+                                                return (
+                                                    <tr key={p.id} className="text-gray-700">
+                                                        <td className="whitespace-nowrap py-3 pr-4">{formatDateTime(baseWhen)}</td>
+                                                        <td className="whitespace-nowrap py-3 pr-4">
+                                                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${paymentStatus.classes}`}>
+                                                                {paymentStatus.label}
+                                                            </span>
+                                                        </td>
+                                                        <td className="whitespace-nowrap py-3 pr-4 font-medium text-gray-900 tabular-nums">
+                                                            {formatMoney(p.amount, p.currency)}
+                                                        </td>
+                                                        <td className="whitespace-nowrap py-3 pr-4">
+                                                            {p.lastEvent ? (
+                                                                <div className="flex flex-col">
+                                                                    <span>{formatDateTime(latestWhen)}</span>
+                                                                    <span className="text-xs text-gray-500">
+                                                                        {p.lastEvent.status} · {p.lastEvent.stripeEventType}
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-gray-400">—</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="whitespace-nowrap py-3">
+                                                            {link ? (
+                                                                <a
+                                                                    href={link}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="font-semibold text-blue-600 hover:text-blue-500"
+                                                                >
+                                                                    View
+                                                                </a>
+                                                            ) : p.stripeInvoiceId ? (
+                                                                <span className="text-gray-500">{p.stripeInvoiceId}</span>
+                                                            ) : (
+                                                                <span className="text-gray-400">—</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </Card>
+                    </>
                 )}
 
                 <Modal

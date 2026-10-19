@@ -113,7 +113,17 @@ export async function GET(req: Request) {
       where: { businessId: business.id },
       orderBy: [{ createdAtGoogle: { sort: "desc", nulls: "last" } }, { id: "desc" }],
       take: LIST_LIMIT,
-      select: { id: true, rating: true, authorName: true, comment: true, status: true, createdAt: true, createdAtGoogle: true },
+      select: {
+        id: true,
+        rating: true,
+        authorName: true,
+        comment: true,
+        status: true,
+        createdAt: true,
+        createdAtGoogle: true,
+        lastError: true,
+        response: { select: { finalText: true } },
+      },
     }),
   ]);
 
@@ -157,6 +167,8 @@ export async function GET(req: Request) {
     createdAt: Date;
     createdAtGoogle: Date | null;
     status?: string;
+    lastError?: string | null;
+    response?: { finalText: string } | null;
   }) => ({
     id: r.id,
     rating: r.rating,
@@ -166,6 +178,8 @@ export async function GET(req: Request) {
     ...(r.status
       ? { status: r.status, beforeAutomation: isBeforeAutomation({ status: r.status, createdAtGoogle: r.createdAtGoogle }, connectedAt) }
       : {}),
+    ...(r.response?.finalText ? { replyText: r.response.finalText } : {}),
+    ...(r.lastError ? { lastError: r.lastError } : {}),
   });
 
   return NextResponse.json({
