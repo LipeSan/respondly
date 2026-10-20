@@ -98,21 +98,26 @@ function getPaymentStatus(status: string) {
     return { label: labels[status] ?? status, classes };
 }
 
-const planBenefits = [
+// Keep in sync with the real gates in src/lib/plan.ts (AI is Pro-only) and the
+// cron schedule in vercel.json (reviews are synced and answered once a day).
+const starterBenefits = [
     "Automatic replies to Google reviews",
-    "Smart rules based on star rating",
+    "Rules based on star rating",
     "Unlimited templates",
-    "24/7 automation",
-    "AI-powered responses in Pro",
+    "Manual mode to approve replies before posting",
+    "New reviews checked and answered daily",
+];
+
+const proBenefits = [
+    "Everything in Starter",
+    "AI-written replies",
+    "Custom AI tone, length and instructions",
 ];
 
 function SubscriptionSkeleton() {
     return (
         <div className="animate-pulse space-y-6" aria-busy="true" aria-label="Loading subscription">
-            <div className="grid gap-6 lg:grid-cols-3">
-                <div className="h-56 rounded-2xl bg-gray-100 lg:col-span-2" />
-                <div className="h-56 rounded-2xl bg-gray-100" />
-            </div>
+            <div className="h-64 rounded-2xl bg-gray-100" />
             <div className="h-48 rounded-2xl bg-gray-100" />
         </div>
     );
@@ -282,6 +287,9 @@ export default function SubscriptionPage() {
 
     const periodDate = isCancelScheduled ? cancelAtDate : subscription?.currentPeriodEnd ?? null;
 
+    const isPro = hasActiveSubscription && subscription?.plan === "pro";
+    const planBenefits = isPro ? proBenefits : starterBenefits;
+
     return (
         <div className="pb-12">
             <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -322,47 +330,38 @@ export default function SubscriptionPage() {
                     </div>
                 ) : (
                     <>
-                        <div className="grid gap-6 lg:grid-cols-3">
-                            <PlanCard active={hasActiveSubscription} className="lg:col-span-2">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${badgeClasses}`}>
-                                            <span className={`h-1.5 w-1.5 rounded-full ${dotClasses}`} />
-                                            {statusLabel}
-                                        </span>
-                                        <p className="mt-3 text-2xl font-bold tracking-tight text-gray-900">
-                                            {planLabel === "Free" ? "Free plan" : `${planLabel} plan`}
-                                        </p>
-                                        <p className="mt-1 text-sm text-gray-600">{business.name}</p>
-                                    </div>
-                                    <p className="hidden max-w-[12rem] text-right text-xs text-gray-500 md:block">
-                                        Stripe secures all payments and subscriptions.
+                        <PlanCard active={hasActiveSubscription}>
+                            <div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <p className="text-2xl font-bold tracking-tight text-gray-900">
+                                        {planLabel === "Free" ? "Free plan" : `${planLabel} plan`}
                                     </p>
+                                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${badgeClasses}`}>
+                                        <span className={`h-1.5 w-1.5 rounded-full ${dotClasses}`} />
+                                        {statusLabel}
+                                    </span>
                                 </div>
+                                <p className="mt-1 text-sm text-gray-600">
+                                    {hasActiveSubscription
+                                        ? `${business.name}${periodDate ? ` · ${isCancelScheduled ? "Ends on" : "Renews on"} ${formatDate(periodDate)}` : ""}`
+                                        : "Subscribe to a plan to turn on automatic replies."}
+                                </p>
+                            </div>
 
-                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                    <div className="rounded-xl bg-white/70 px-4 py-3 backdrop-blur">
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Plan</p>
-                                        <p className="mt-1 text-sm font-semibold text-gray-900">{planLabel}</p>
-                                    </div>
-                                    <div className="rounded-xl bg-white/70 px-4 py-3 backdrop-blur">
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Status</p>
-                                        <p className="mt-1 text-sm font-semibold text-gray-900">{statusLabel}</p>
-                                    </div>
-                                    <div className="rounded-xl bg-white/70 px-4 py-3 backdrop-blur">
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            {isCancelScheduled ? "Ends on" : "Next renewal"}
-                                        </p>
-                                        <p className="mt-1 text-sm font-semibold text-gray-900">
-                                            {periodDate ? formatDate(periodDate) : "Not scheduled"}
-                                        </p>
-                                    </div>
+                            <div className="mt-6 rounded-xl bg-white/70 p-5 backdrop-blur">
+                                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">What&apos;s included</p>
+                                    {!isPro ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPlans(true)}
+                                            className="text-sm font-semibold text-green-700 transition-colors hover:text-green-800"
+                                        >
+                                            {hasActiveSubscription ? "Upgrade to Pro for AI replies →" : "See plans →"}
+                                        </button>
+                                    ) : null}
                                 </div>
-                            </PlanCard>
-
-                            <Card>
-                                <CardHeader title="Plan benefits" subtitle="What's included in your subscription." />
-                                <ul className="mt-4 space-y-2.5">
+                                <ul className="mt-3 grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
                                     {planBenefits.map((benefit) => (
                                         <li key={benefit} className="flex items-start gap-2.5 text-sm text-gray-700">
                                             <svg className="mt-0.5 h-4 w-4 shrink-0 text-green-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -372,8 +371,8 @@ export default function SubscriptionPage() {
                                         </li>
                                     ))}
                                 </ul>
-                            </Card>
-                        </div>
+                            </div>
+                        </PlanCard>
 
                         <div className="grid gap-6 md:grid-cols-2">
                             <Card>

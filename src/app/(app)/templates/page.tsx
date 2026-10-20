@@ -276,12 +276,12 @@ export default function TemplatesPage() {
                   <p className="mt-1 max-w-xs text-sm text-gray-500">Write your first reply to use it in your rules.</p>
                 </div>
               ) : (
-                <div className="mt-3 divide-y divide-gray-100">
+                <div className="mt-4 space-y-2">
                   {templates.map((t) => (
                     <div
                       key={t.id}
-                      className={`flex items-start justify-between gap-2 rounded-xl px-3 py-3 transition-colors ${
-                        selectedId === t.id ? "bg-gray-50" : "hover:bg-gray-50"
+                      className={`group flex items-start justify-between gap-2 rounded-xl border bg-gray-50 px-3 py-3 transition-colors ${
+                        selectedId === t.id ? "border-green-500 ring-1 ring-green-500" : "border-transparent hover:bg-gray-100"
                       }`}
                     >
                       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setSelectedId(t.id)}>

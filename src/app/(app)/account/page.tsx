@@ -1,117 +1,84 @@
 import Link from "next/link";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 import { Button } from "@/components/Button";
+import { Card, CardHeader } from "@/components/Card";
 import { Text } from "@/components/Text";
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-gray-50 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+      <p className="mt-1 truncate text-sm text-gray-900">{value}</p>
+    </div>
+  );
+}
 
 export default async function AccountPage() {
   const { user, business } = await getCurrentUserAndBusiness();
+  const googleConnected = Boolean(business?.googleLocationId);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <Text variant="h1">Account</Text>
-            <Text variant="subtitle" className="mt-2">
-              Manage your profile and account settings.
-            </Text>
-          </div>
+    <div className="pb-12">
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <div>
+          <Text variant="h1">Account</Text>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-green-600">
+            Manage your profile and account settings.
+          </p>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-            <Text variant="h2" className="!text-lg">
-              Profile
-            </Text>
-
-            <div className="mt-4 space-y-3">
-              <div>
-                <Text
-                  variant="body"
-                  className="text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                >
-                  Name
-                </Text>
-                <Text variant="body" className="mt-1 text-gray-900">
-                  {user?.name || "—"}
-                </Text>
-              </div>
-              <div>
-                <Text
-                  variant="body"
-                  className="text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                >
-                  Email
-                </Text>
-                <Text variant="body" className="mt-1 text-gray-900">
-                  {user?.email || "—"}
-                </Text>
-              </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="flex flex-col">
+            <CardHeader
+              title="Profile"
+              subtitle="The details you sign in with."
+              action={
+                <Link href="/forgot-password" className="shrink-0">
+                  <Button variant="outline" className="!w-auto px-4 py-2">
+                    Reset password
+                  </Button>
+                </Link>
+              }
+            />
+            <p className="mt-5 truncate text-2xl font-bold tracking-tight text-gray-900">{user?.name || "—"}</p>
+            <div className="mt-4 grid gap-3">
+              <Field label="Email" value={user?.email || "—"} />
             </div>
+          </Card>
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
-              <Link href="/forgot-password" className="w-full sm:w-auto">
-                <Button variant="outline" className="!w-full sm:!w-auto">
-                  Reset password
-                </Button>
-              </Link>
+          <Card className="flex flex-col">
+            <CardHeader
+              title="Business"
+              subtitle="Used in your replies and templates."
+              action={
+                googleConnected ? (
+                  <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                    Google connected
+                  </span>
+                ) : (
+                  <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                    Google not connected
+                  </span>
+                )
+              }
+            />
+            <p className="mt-5 truncate text-2xl font-bold tracking-tight text-gray-900">{business?.name || "—"}</p>
+            <div className="mt-4 grid flex-1 content-start gap-3">
+              <Field label="Timezone" value={business?.timezone || "—"} />
             </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-            <Text variant="h2" className="!text-lg">
-              Business
-            </Text>
-
-            <div className="mt-4 space-y-3">
-              <div>
-                <Text
-                  variant="body"
-                  className="text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                >
-                  Business name
-                </Text>
-                <Text variant="body" className="mt-1 text-gray-900">
-                  {business?.name || "—"}
-                </Text>
-              </div>
-              <div>
-                <Text
-                  variant="body"
-                  className="text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                >
-                  Timezone
-                </Text>
-                <Text variant="body" className="mt-1 text-gray-900">
-                  {business?.timezone || "—"}
-                </Text>
-              </div>
-              <div>
-                <Text
-                  variant="body"
-                  className="text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                >
-                  Google connection
-                </Text>
-                <Text variant="body" className="mt-1 text-gray-900">
-                  {business?.googleLocationId ? "Connected" : "Not connected"}
-                </Text>
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link href="/subscription" className="w-full sm:w-auto">
-                <Button className="!w-full sm:!w-auto">Manage subscription</Button>
+                <Button className="!w-full px-4 py-2 sm:!w-auto">Manage subscription</Button>
               </Link>
               <Link href="/configuration" className="w-full sm:w-auto">
-                <Button variant="outline" className="!w-full sm:!w-auto">
+                <Button variant="outline" className="!w-full px-4 py-2 sm:!w-auto">
                   Configuration
                 </Button>
               </Link>
             </div>
-          </div>
+          </Card>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
