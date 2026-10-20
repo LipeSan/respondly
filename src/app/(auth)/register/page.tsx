@@ -113,15 +113,16 @@ function RegisterInner() {
           return;
         }
 
+        // Keep the spinner on until the next page replaces this one.
         router.push(nextWithParams);
         router.refresh();
       } else {
         const data = await res.json();
         setError(data.error || "Something went wrong");
+        setLoading(false);
       }
     } catch {
       setError("Failed to register");
-    } finally {
       setLoading(false);
     }
   };

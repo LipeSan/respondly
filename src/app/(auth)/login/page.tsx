@@ -96,13 +96,14 @@ function LoginInner() {
 
       if (res?.error) {
         setError("Invalid email or password");
+        setLoading(false);
       } else {
+        // Keep the spinner on until the next page replaces this one.
         router.push(nextWithParams);
         router.refresh();
       }
     } catch {
       setError("Failed to sign in");
-    } finally {
       setLoading(false);
     }
   };
