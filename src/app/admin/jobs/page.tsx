@@ -213,7 +213,7 @@ export default async function AdminJobsPage({
                         ) : job.type === "sync_reviews" ? (
                           `${job.processed} reviews synced`
                         ) : (
-                          `${job.responded} replied · ${job.skipped} skipped · ${job.processed} pending`
+                          `${job.responded} replied · ${job.skipped} skipped · ${job.processed} processed`
                         )}
                       </td>
                       <td className="whitespace-nowrap px-6 py-3 text-right tabular-nums text-gray-600">
