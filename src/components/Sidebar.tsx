@@ -12,7 +12,6 @@ const mainNavItems = [
   { name: "Templates", href: "/templates" },
 ];
 
-// Shop is hidden from the customer menu until launch; the URL still works.
 const shopNavItem = { name: "Shop", href: "/shop" };
 
 const adminNavItems = [
@@ -85,14 +84,12 @@ function NavIcon({ name, className }: { name: string; className: string }) {
   );
 }
 
-export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
+export function Sidebar() {
   const pathname = usePathname();
   const isAdminSection = pathname?.startsWith("/admin");
   const navItems = isAdminSection
     ? adminNavItems
-    : isAdmin
-      ? [...mainNavItems, shopNavItem]
-      : mainNavItems;
+    : [...mainNavItems, shopNavItem];
   const menuLabel = isAdminSection ? "Admin" : "Menu";
 
   return (
