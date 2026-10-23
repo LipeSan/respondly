@@ -70,10 +70,11 @@ export default function ReviewKit() {
             </ol>
 
             <div className="mt-10">
-              <Link href="/register" data-testid="kit-cta">
-                <Button className="!w-auto !px-8">Create your account</Button>
+              {/* The shop needs a login, so send visitors through it and land them on /shop. */}
+              <Link href="/login?next=/shop" data-testid="kit-cta">
+                <Button className="!w-auto !px-8">Go to shop</Button>
               </Link>
-              <p className="mt-3 text-sm text-zinc-500">Order the kit from your dashboard once you&apos;re set up.</p>
+              <p className="mt-3 text-sm text-zinc-500">Log in or create an account to order.</p>
             </div>
           </div>
 
