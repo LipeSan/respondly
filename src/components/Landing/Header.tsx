@@ -60,6 +60,9 @@ export default function Header({ showNav = true }: HeaderProps) {
             <button onClick={() => scrollToId("features")} data-testid="nav-features" className="hover:text-white transition">
               Features
             </button>
+            <button onClick={() => scrollToId("kit")} data-testid="nav-store" className="hover:text-white transition">
+              Store
+            </button>
             <button onClick={() => scrollToId("pricing")} data-testid="nav-pricing" className="hover:text-white transition">
               Pricing
             </button>
