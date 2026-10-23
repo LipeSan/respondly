@@ -98,29 +98,31 @@ export default function ReviewKit() {
           ) : null}
         </div>
 
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4">
           {singles.map((p, i) => (
             <motion.div
               key={p.id}
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.08 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 hover:border-white/25 transition-all"
+              transition={{ duration: 0.4, delay: i * 0.08 }}
+              className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3 hover:border-white/25 transition-all"
               data-testid={`kit-product-${p.id}`}
             >
-              <div className="overflow-hidden rounded-xl bg-white">
+              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-white">
                 <Image
                   src={p.images[0]}
                   alt={p.name}
-                  width={1200}
-                  height={1200}
-                  sizes="(min-width: 640px) 33vw, 100vw"
-                  className="aspect-square w-full object-contain"
+                  width={160}
+                  height={160}
+                  sizes="80px"
+                  className="h-full w-full object-contain"
                 />
               </div>
-              <h3 className="font-heading mt-4 px-1 text-lg font-semibold">{p.name}</h3>
-              <p className="mt-1 px-1 pb-1 text-sm text-zinc-400 leading-relaxed">{p.description}</p>
+              <div className="min-w-0">
+                <h3 className="font-heading font-semibold">{p.name}</h3>
+                <p className="mt-0.5 text-sm text-zinc-400 leading-snug">{p.description}</p>
+              </div>
             </motion.div>
           ))}
         </div>
