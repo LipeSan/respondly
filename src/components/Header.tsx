@@ -103,7 +103,7 @@ export function Header({ businessName, userName, userEmail, isAdmin = false }: H
         { name: "Reviews", href: "/reviews" },
         { name: "Rules", href: "/rules" },
         { name: "Templates", href: "/templates" },
-        // Shop is admin-only until it launches for customers.
+        // Shop is hidden from the customer menu until launch; the URL still works.
         ...(isAdmin ? [{ name: "Shop", href: "/shop" }] : []),
         { name: "Google", href: "/google" },
         { name: "Subscription", href: "/subscription" },

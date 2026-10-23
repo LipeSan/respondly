@@ -14,10 +14,6 @@ export async function POST(req: Request) {
     if (!business || !user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
-    // Shop is admin-only until it launches for customers.
-    if (!ctx.isAdmin) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
     if (isReadOnlySupportImpersonation(ctx)) {
       return NextResponse.json(
         { error: "Support accounts cannot place orders while impersonating." },

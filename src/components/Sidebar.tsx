@@ -12,7 +12,7 @@ const mainNavItems = [
   { name: "Templates", href: "/templates" },
 ];
 
-// Shop is admin-only until it launches for customers.
+// Shop is hidden from the customer menu until launch; the URL still works.
 const shopNavItem = { name: "Shop", href: "/shop" };
 
 const adminNavItems = [
