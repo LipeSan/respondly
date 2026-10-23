@@ -27,6 +27,7 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     "/subscription",
     "/start-trial",
     "/account",
+    "/shop",
   ];
 
   const isProtected = protectedPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));

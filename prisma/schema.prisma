@@ -95,6 +95,7 @@ model Business {
   usedTrialInvites     TrialInvite[] @relation("TrialInviteUsedByBusiness")
   trialInviteRedemptions TrialInviteRedemption[]
   adminAuditLogs       AdminAuditLog[] @relation("AdminAuditTargetBusiness")
+  shopOrders           ShopOrder[]
   createdAt            DateTime          @default(now())
 }
 
@@ -326,4 +327,45 @@ model ContactMessage {
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
+}
+
+enum ShopOrderStatus {
+  pending // checkout started, not paid yet
+  paid
+  shipped
+  canceled // checkout expired or payment failed
+}
+
+// NFC products bought from the Shop. One-off Stripe payments, kept apart
+// from Subscription/PaymentHistory so they never affect plan gating.
+model ShopOrder {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  status ShopOrderStatus @default(pending)
+
+  // [{ productId, name, quantity, unitAmount }] with amounts in cents
+  items    Json
+  subtotal Int
+  shipping Int
+  total    Int
+  currency String @default("aud")
+
+  stripeSessionId       String? @unique
+  stripePaymentIntentId String?
+
+  email           String?
+  shippingName    String?
+  shippingAddress Json?
+
+  // Set by an admin when the order is marked shipped.
+  trackingNumber String?
+  shippedAt      DateTime?
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([businessId, createdAt])
 }

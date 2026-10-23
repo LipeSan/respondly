@@ -10,7 +10,7 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
-function getConfiguredAdminEmails() {
+export function getConfiguredAdminEmails() {
   const raw = process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? "";
   return raw
     .split(",")

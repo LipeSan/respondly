@@ -12,6 +12,9 @@ const mainNavItems = [
   { name: "Templates", href: "/templates" },
 ];
 
+// Shop is admin-only until it launches for customers.
+const shopNavItem = { name: "Shop", href: "/shop" };
+
 const adminNavItems = [
   { name: "Admin", href: "/admin" },
 ];
@@ -49,6 +52,14 @@ function NavIcon({ name, className }: { name: string; className: string }) {
       </svg>
     );
   }
+  if (name === "Shop") {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 8Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 8V6a3 3 0 0 1 6 0v2" />
+      </svg>
+    );
+  }
   if (name === "Templates") {
     return (
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,10 +85,14 @@ function NavIcon({ name, className }: { name: string; className: string }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const isAdminSection = pathname?.startsWith("/admin");
-  const navItems = isAdminSection ? adminNavItems : mainNavItems;
+  const navItems = isAdminSection
+    ? adminNavItems
+    : isAdmin
+      ? [...mainNavItems, shopNavItem]
+      : mainNavItems;
   const menuLabel = isAdminSection ? "Admin" : "Menu";
 
   return (

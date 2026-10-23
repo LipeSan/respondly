@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { handleShopCheckoutEvent, isShopCheckoutSession } from "@/lib/shopOrders";
 
 type SubscriptionWithPeriodEnd = Stripe.Subscription & {
   current_period_end?: number;
@@ -384,6 +385,20 @@ export async function POST(req: Request) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[stripe:webhook] consumeTrialInvite failed", { businessId: args.businessId, code, error: msg });
     }
+  }
+
+  // 0) Shop orders are one-off payments: handle them here and stop, so they
+  // never reach the subscription handlers below (which would otherwise treat
+  // the session as a subscription or mark it past_due on a failed payment).
+  if (
+    (event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded" ||
+      event.type === "checkout.session.async_payment_failed" ||
+      event.type === "checkout.session.expired") &&
+    isShopCheckoutSession(event.data.object as Stripe.Checkout.Session)
+  ) {
+    await handleShopCheckoutEvent(event.type, event.data.object as Stripe.Checkout.Session);
+    return NextResponse.json({ received: true });
   }
 
   // 1) Checkout completed (always save IDs; try to enrich with status and currentPeriodEnd)

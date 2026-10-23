@@ -14,14 +14,17 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header
-        userName={adminContext.user.name ?? undefined}
-        userEmail={adminContext.user.email}
-        isAdmin
-      />
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-8 lg:px-8">
-        <aside className="mb-6 lg:mb-0">
+    <div className="min-h-screen bg-gray-50 print:bg-white">
+      {/* Header and nav are hidden when printing, e.g. shipping labels. */}
+      <div className="print:hidden">
+        <Header
+          userName={adminContext.user.name ?? undefined}
+          userEmail={adminContext.user.email}
+          isAdmin
+        />
+      </div>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-8 lg:px-8 print:block print:p-0">
+        <aside className="mb-6 lg:mb-0 print:hidden">
           <p className="mb-2 hidden px-3 text-xs font-semibold uppercase tracking-wider text-gray-400 lg:block">
             Admin · {adminContext.accessLevel}
           </p>
