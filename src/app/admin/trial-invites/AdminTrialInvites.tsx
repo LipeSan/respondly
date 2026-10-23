@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { InlineNotification } from "@/components/InlineNotification";
-import { formatDate } from "@/lib/date";
+import { formatAdminDate } from "@/lib/date";
 import { Badge, Card, CardHeader } from "@/app/admin/ui";
 
 type TrialInvite = {
@@ -191,14 +191,14 @@ export function AdminTrialInvites() {
                     <td className="px-4 py-3 text-gray-600">
                       {invite.usedAt ? (
                         <>
-                          {formatDate(invite.usedAt)}
+                          {formatAdminDate(invite.usedAt)}
                           {invite.usedByBusiness ? <span className="text-gray-400"> · {invite.usedByBusiness.name}</span> : null}
                         </>
                       ) : (
                         <span className="text-gray-400">Never</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{formatDate(invite.createdAt)}</td>
+                    <td className="px-4 py-3 text-gray-600">{formatAdminDate(invite.createdAt)}</td>
                     <td className="px-6 py-3">
                       <div className="flex justify-end gap-1.5">
                         <button

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentAdminUser, getAdminImpersonatedBusinessId } from "@/lib/admin";
 import { loadBusinessHealthRows } from "@/lib/adminData";
-import { formatDate, formatDateTime } from "@/lib/date";
+import { formatAdminDate, formatAdminDateTime } from "@/lib/date";
 import { getOnboardingStage } from "@/lib/email/adminEmailPresets";
 import { automatedReviewsWhere, isBeforeAutomation } from "@/lib/reviews/automationWindow";
 import { Badge, Card, CardHeader, HealthDot, formatAuditAction, formatRelative, planBadge } from "../../ui";
@@ -155,11 +155,11 @@ export default async function AdminBusinessDetailPage({
   const sub = business.subscription;
 
   const checklist: Array<{ state: CheckState; label: string; detail?: string }> = [
-    { state: "ok", label: "Account created", detail: `${business.user.email} · ${formatDate(business.user.createdAt)}` },
+    { state: "ok", label: "Account created", detail: `${business.user.email} · ${formatAdminDate(business.user.createdAt)}` },
     {
       state: health.googleConnected ? "ok" : "error",
       label: health.googleConnected ? "Google connected" : "Google not connected",
-      detail: business.connectedAt ? `First sync ${formatDate(business.connectedAt)}` : undefined,
+      detail: business.connectedAt ? `First sync ${formatAdminDate(business.connectedAt)}` : undefined,
     },
     {
       state: health.locationSelected ? "ok" : health.googleConnected ? "error" : "warning",
@@ -170,10 +170,10 @@ export default async function AdminBusinessDetailPage({
       label: !sub ? "No plan" : `${plan.label}`,
       detail: sub
         ? sub.status === "trialing"
-          ? `Trial ends ${formatDate(sub.trialEndsAt)}`
+          ? `Trial ends ${formatAdminDate(sub.trialEndsAt)}`
           : sub.cancelAtPeriodEnd
-            ? `Cancels ${formatDate(sub.cancelAt ?? sub.currentPeriodEnd)}`
-            : `Renews ${formatDate(sub.currentPeriodEnd)}`
+            ? `Cancels ${formatAdminDate(sub.cancelAt ?? sub.currentPeriodEnd)}`
+            : `Renews ${formatAdminDate(sub.currentPeriodEnd)}`
         : undefined,
     },
     {
@@ -185,7 +185,7 @@ export default async function AdminBusinessDetailPage({
       label: health.lastSync
         ? `Last sync ${formatRelative(health.lastSync.at)}${health.lastSync.status === "failed" ? " (failed)" : ""}`
         : "Never synced",
-      detail: health.lastSync ? formatDateTime(health.lastSync.at) : undefined,
+      detail: health.lastSync ? formatAdminDateTime(health.lastSync.at) : undefined,
     },
   ];
 
@@ -205,7 +205,7 @@ export default async function AdminBusinessDetailPage({
             </div>
             <p className="mt-1 text-sm text-gray-500">
               {business.user.name ? `${business.user.name} · ` : ""}
-              {business.user.email} · customer since {formatDate(business.createdAt)}
+              {business.user.email} · customer since {formatAdminDate(business.createdAt)}
             </p>
           </div>
           <AdminBusinessActions
@@ -300,7 +300,7 @@ export default async function AdminBusinessDetailPage({
                       <Badge tone={job.status === "success" ? "green" : job.status === "failed" ? "red" : "amber"}>
                         {job.status}
                       </Badge>
-                      <span className="text-xs text-gray-400" title={formatDateTime(job.startedAt)}>
+                      <span className="text-xs text-gray-400" title={formatAdminDateTime(job.startedAt)}>
                         {formatRelative(job.startedAt)}
                       </span>
                     </div>
@@ -315,7 +315,7 @@ export default async function AdminBusinessDetailPage({
               title="Latest reviews"
               subtitle={
                 business.connectedAt
-                  ? `Reviews posted before ${formatDate(business.connectedAt)} aren't answered automatically.`
+                  ? `Reviews posted before ${formatAdminDate(business.connectedAt)} aren't answered automatically.`
                   : undefined
               }
             />
@@ -345,7 +345,7 @@ export default async function AdminBusinessDetailPage({
                             {review.status}
                           </Badge>
                         )}
-                        <span className="text-xs text-gray-400">{formatDate(review.createdAtGoogle ?? review.createdAt)}</span>
+                        <span className="text-xs text-gray-400">{formatAdminDate(review.createdAtGoogle ?? review.createdAt)}</span>
                       </div>
                     </div>
                     {review.comment ? <p className="mt-1 line-clamp-2 text-gray-600">{review.comment}</p> : null}
@@ -447,12 +447,12 @@ export default async function AdminBusinessDetailPage({
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-gray-500">{sub?.status === "trialing" ? "Trial ends" : "Period ends"}</dt>
-                <dd className="text-gray-900">{formatDate(sub?.status === "trialing" ? sub?.trialEndsAt : sub?.currentPeriodEnd)}</dd>
+                <dd className="text-gray-900">{formatAdminDate(sub?.status === "trialing" ? sub?.trialEndsAt : sub?.currentPeriodEnd)}</dd>
               </div>
               {sub?.cancelAtPeriodEnd ? (
                 <div className="flex justify-between gap-4">
                   <dt className="text-gray-500">Cancels</dt>
-                  <dd className="text-red-700">{formatDate(sub.cancelAt ?? sub.currentPeriodEnd)}</dd>
+                  <dd className="text-red-700">{formatAdminDate(sub.cancelAt ?? sub.currentPeriodEnd)}</dd>
                 </div>
               ) : null}
               <div className="flex justify-between gap-4">
@@ -476,7 +476,7 @@ export default async function AdminBusinessDetailPage({
                       <p className="truncate text-xs text-gray-400">{event.stripeEventType}</p>
                     </div>
                     <div className="shrink-0 text-right text-xs text-gray-500">
-                      {formatDate(event.createdAt)}
+                      {formatAdminDate(event.createdAt)}
                       {event.hostedInvoiceUrl ? (
                         <a
                           href={event.hostedInvoiceUrl}
@@ -506,7 +506,7 @@ export default async function AdminBusinessDetailPage({
                     <li key={log.id} className="py-2.5 text-sm">
                       <div className="flex items-start justify-between gap-3">
                         <p className="text-gray-900">{formatAuditAction(log.action)}</p>
-                        <span className="shrink-0 text-xs text-gray-400" title={formatDateTime(log.createdAt)}>
+                        <span className="shrink-0 text-xs text-gray-400" title={formatAdminDateTime(log.createdAt)}>
                           {formatRelative(log.createdAt)}
                         </span>
                       </div>

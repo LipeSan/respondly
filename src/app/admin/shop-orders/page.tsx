@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getCurrentAdminUser } from "@/lib/admin";
-import { formatDateTime } from "@/lib/date";
+import { formatAdminDateTime } from "@/lib/date";
 import { shopItemKey, shopItemLabel, type ShopOrderItem } from "@/lib/shopOrders";
 import { Badge, Card, PageHeader, formatRelative, type BadgeTone } from "../ui";
 import { AdminShopOrderAction } from "./AdminShopOrderAction";
@@ -188,7 +188,7 @@ export default async function AdminShopOrdersPage({
                   return (
                     <tr key={order.id} className="align-top hover:bg-gray-50/60">
                       <td className="whitespace-nowrap px-6 py-3">
-                        <span className="text-gray-900">{formatDateTime(order.paidAt ?? order.createdAt)}</span>
+                        <span className="text-gray-900">{formatAdminDateTime(order.paidAt ?? order.createdAt)}</span>
                         <p className="text-xs text-gray-400">{formatRelative(order.paidAt ?? order.createdAt)}</p>
                         <p className="mt-1 font-mono text-xs text-gray-400">#{order.id.slice(-8).toUpperCase()}</p>
                       </td>
@@ -241,7 +241,7 @@ export default async function AdminShopOrdersPage({
                           </p>
                         ) : null}
                         {order.shippedAt ? (
-                          <p className="text-xs text-gray-400">{formatDateTime(order.shippedAt)}</p>
+                          <p className="text-xs text-gray-400">{formatAdminDateTime(order.shippedAt)}</p>
                         ) : null}
                       </td>
                       <td className="px-6 py-3 text-right">
