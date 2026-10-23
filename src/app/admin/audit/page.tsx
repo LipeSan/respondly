@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { formatDateTime } from "@/lib/date";
+import { formatAdminDateTime } from "@/lib/date";
 import { Card, PageHeader, formatAuditAction, formatRelative } from "../ui";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +53,7 @@ export default async function AdminAuditPage() {
                           : "";
                   return (
                     <tr key={log.id} className="align-top hover:bg-gray-50/60">
-                      <td className="whitespace-nowrap px-6 py-3 text-gray-600" title={formatDateTime(log.createdAt)}>
+                      <td className="whitespace-nowrap px-6 py-3 text-gray-600" title={formatAdminDateTime(log.createdAt)}>
                         {formatRelative(log.createdAt)}
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-900">{formatAuditAction(log.action)}</td>

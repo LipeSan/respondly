@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { formatDateTime } from "@/lib/date";
+import { formatAdminDateTime } from "@/lib/date";
 import { Badge, Card, PageHeader, formatRelative, type BadgeTone } from "../ui";
 
 export const dynamic = "force-dynamic";
@@ -161,7 +161,7 @@ export default async function AdminJobsPage({
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="border-b border-gray-100 bg-gray-50/60 text-xs font-semibold uppercase tracking-wider text-gray-500">
               <tr>
-                <th scope="col" className="px-6 py-3">Started</th>
+                <th scope="col" className="px-6 py-3">Started (Sydney)</th>
                 <th scope="col" className="px-4 py-3">Job</th>
                 <th scope="col" className="px-4 py-3">Business</th>
                 <th scope="col" className="px-4 py-3">Status</th>
@@ -187,7 +187,7 @@ export default async function AdminJobsPage({
                   return (
                     <tr key={job.id} className="align-top hover:bg-gray-50/60">
                       <td className="whitespace-nowrap px-6 py-3">
-                        <span className="text-gray-900">{formatDateTime(job.startedAt)}</span>
+                        <span className="text-gray-900">{formatAdminDateTime(job.startedAt)}</span>
                         <p className="text-xs text-gray-400">{formatRelative(job.startedAt)}</p>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-gray-900">{typeLabels[job.type]}</td>
@@ -213,7 +213,7 @@ export default async function AdminJobsPage({
                         ) : job.type === "sync_reviews" ? (
                           `${job.processed} reviews synced`
                         ) : (
-                          `${job.responded} replied · ${job.skipped} skipped · ${job.processed} pending`
+                          `${job.responded} replied · ${job.skipped} skipped · ${job.processed} processed`
                         )}
                       </td>
                       <td className="whitespace-nowrap px-6 py-3 text-right tabular-nums text-gray-600">

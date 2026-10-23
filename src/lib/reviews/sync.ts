@@ -3,7 +3,16 @@ import { fetchMockReviews } from "@/lib/reviews/providers/mock";
 import { fetchGoogleReviews } from "@/lib/reviews/providers/google";
 import type { ExternalReview } from "@/lib/reviews/providers/mock";
 import { finishJobFailed, finishJobSuccess, startJob } from "../jobs";
-import { JobType } from "@prisma/client";
+import { JobType, Prisma } from "@prisma/client";
+
+function toReviewData(r: ExternalReview) {
+    return {
+        rating: Math.max(1, Math.min(5, Math.round(r.rating))),
+        authorName: r.authorName ?? null,
+        comment: r.comment ?? null,
+        createdAtGoogle: r.createdAtGoogle ?? null,
+    };
+}
 
 export async function syncReviewsForBusiness(
     businessId: string,
@@ -31,47 +40,49 @@ export async function syncReviewsForBusiness(
 
         const firstSync = !biz.initialSyncCompleted;
 
-        let imported = 0;
-        let updated = 0;
+        // Dedupe by externalId so one review never lands in both the create and update batches
+        const incoming = new Map<string, ExternalReview>();
+        for (const r of fetched) if (r.source === source) incoming.set(r.externalId, r);
 
-        for (const r of fetched) {
-            // Upsert ensures consistency and prevents duplicates (race conditions)
-            // Requires @@unique([businessId, source, externalId]) in the schema
-            const data = {
-                rating: Math.max(1, Math.min(5, Math.round(r.rating))),
-                authorName: r.authorName ?? null,
-                comment: r.comment ?? null,
-                createdAtGoogle: r.createdAtGoogle ?? null,
-            };
+        // One query for what we already have, instead of an upsert per review
+        const existing = await prisma.review.findMany({
+            where: { businessId, source, externalId: { in: [...incoming.keys()] } },
+            select: { id: true, externalId: true, rating: true, authorName: true, comment: true, createdAtGoogle: true },
+        });
+        const existingById = new Map(existing.map((e) => [e.externalId, e]));
 
-            const res = await prisma.review.upsert({
-                where: {
-                    businessId_source_externalId: {
-                        businessId,
-                        source: r.source,
-                        externalId: r.externalId,
-                    },
-                },
-                create: {
-                    businessId,
-                    source: r.source,
-                    externalId: r.externalId,
-                    status: "pending",
-                    ...data,
-                },
-                update: data,
-            });
+        const toCreate: Prisma.ReviewCreateManyInput[] = [];
+        const toUpdate: { id: string; data: ReturnType<typeof toReviewData> }[] = [];
 
-            // Simple heuristic: if updatedAt is very close to createdAt (on create they are the same)
-            // In practice, upsert updates updatedAt.
-            // For an exact count we'd need a findUnique before upsert, which becomes a double N+1.
-            // We'll assume this is good enough.
-            if (res.createdAt.getTime() === res.updatedAt.getTime()) {
-                imported++;
-            } else {
-                updated++;
+        for (const r of incoming.values()) {
+            const data = toReviewData(r);
+            const current = existingById.get(r.externalId);
+
+            if (!current) {
+                toCreate.push({ businessId, source, externalId: r.externalId, status: "pending", ...data });
+            } else if (
+                current.rating !== data.rating ||
+                current.authorName !== data.authorName ||
+                current.comment !== data.comment ||
+                current.createdAtGoogle?.getTime() !== data.createdAtGoogle?.getTime()
+            ) {
+                toUpdate.push({ id: current.id, data });
             }
+            // Unchanged reviews are not written, so their updatedAt stays meaningful
         }
+
+        // skipDuplicates covers a concurrent sync inserting the same review first
+        // (relies on @@unique([businessId, source, externalId]))
+        const { count: imported } = toCreate.length
+            ? await prisma.review.createMany({ data: toCreate, skipDuplicates: true })
+            : { count: 0 };
+
+        if (toUpdate.length) {
+            await prisma.$transaction(
+                toUpdate.map((u) => prisma.review.update({ where: { id: u.id }, data: u.data }))
+            );
+        }
+        const updated = toUpdate.length;
 
         // ✅ First sync: lock history by setting connectedAt=now
         let connectedAtSet: string | null = null;

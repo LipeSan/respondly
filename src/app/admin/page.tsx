@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAdminOverviewData } from "@/lib/adminData";
-import { formatDateTime } from "@/lib/date";
+import { formatAdminDateTime } from "@/lib/date";
 import {
   Badge,
   Card,
@@ -12,6 +12,7 @@ import {
   formatRelative,
   planBadge,
 } from "./ui";
+import { DailyCountChart, DailyReviewsChart } from "./OverviewCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function AdminOverviewPage() {
   const revenueCurrent = kpis.revenue.current[0];
   const revenuePrevious = kpis.revenue.previous.find((r) => r.currency === revenueCurrent?.currency);
   const funnelTop = Math.max(1, data.funnel[0]?.count ?? 1);
+  const reviewsTotal = data.daily.reduce((sum, d) => sum + d.reviewsPositive + d.reviewsNeutral + d.reviewsNegative, 0);
 
   return (
     <div className="space-y-6">
@@ -178,6 +180,42 @@ export default async function AdminOverviewPage() {
         />
       </div>
 
+      <Card>
+        <CardHeader
+          title="Reviews per day"
+          subtitle={`New Google reviews across all customers by rating, last ${data.rangeDays} days (Sydney time)`}
+          action={
+            <span className="text-sm tabular-nums text-gray-500">
+              <span className="font-semibold text-gray-900">{reviewsTotal}</span> total
+            </span>
+          }
+        />
+        <DailyReviewsChart daily={data.daily} />
+      </Card>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader title="Replies sent per day" subtitle={`Last ${data.rangeDays} days`} />
+          <DailyCountChart
+            daily={data.daily}
+            metric="replies"
+            name="Replies"
+            emptyTitle="No replies sent in this period"
+            emptyDetail="Replies posted by the auto responder or by customers will show up here."
+          />
+        </Card>
+        <Card>
+          <CardHeader title="Signups per day" subtitle={`Last ${data.rangeDays} days, customers only`} />
+          <DailyCountChart
+            daily={data.daily}
+            metric="signups"
+            name="Signups"
+            emptyTitle="No signups in this period"
+            emptyDetail="New customer accounts will show up here."
+          />
+        </Card>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader title="Signup funnel" subtitle="All time, customers only" />
@@ -234,7 +272,7 @@ export default async function AdminOverviewPage() {
                     </p>
                     <p className="truncate text-xs text-gray-500">by {log.actorUser.name || log.actorUser.email}</p>
                   </div>
-                  <time className="shrink-0 text-xs text-gray-400" dateTime={log.createdAt.toISOString()} title={formatDateTime(log.createdAt)}>
+                  <time className="shrink-0 text-xs text-gray-400" dateTime={log.createdAt.toISOString()} title={formatAdminDateTime(log.createdAt)}>
                     {formatRelative(log.createdAt)}
                   </time>
                 </li>

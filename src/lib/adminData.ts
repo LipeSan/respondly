@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { ADMIN_TIMEZONE } from "@/lib/date";
 import {
   CRON_STALE_MS,
   getBusinessHealthIssues,
@@ -114,6 +115,76 @@ function sumByCurrency(rows: Array<{ amount: number | null; currency: string | n
   return [...totals.entries()].map(([currency, amount]) => ({ currency, amount }));
 }
 
+export type AdminDailyPoint = {
+  day: string; // YYYY-MM-DD
+  reviewsPositive: number; // 4-5 stars
+  reviewsNeutral: number; // 3 stars
+  reviewsNegative: number; // 1-2 stars
+  replies: number;
+  signups: number;
+};
+
+/**
+ * One row per day for the last `rangeDays` days, zero-filled.
+ * Reviews are counted on the day they were posted on Google, customers only.
+ * Replies match the "Replies sent" KPI; signups match the "New signups" KPI.
+ */
+async function loadDailySeries(rangeDays: number): Promise<AdminDailyPoint[]> {
+  return prisma.$queryRaw<AdminDailyPoint[]>`
+    WITH days AS (
+      SELECT to_char(d, 'YYYY-MM-DD') AS day
+      FROM generate_series(
+        (now() AT TIME ZONE ${ADMIN_TIMEZONE})::date - (${rangeDays}::int - 1),
+        (now() AT TIME ZONE ${ADMIN_TIMEZONE})::date,
+        interval '1 day'
+      ) AS d
+    ),
+    reviews AS (
+      SELECT
+        to_char((r."createdAtGoogle" AT TIME ZONE 'UTC') AT TIME ZONE ${ADMIN_TIMEZONE}, 'YYYY-MM-DD') AS day,
+        count(*) FILTER (WHERE r.rating >= 4)::int AS positive,
+        count(*) FILTER (WHERE r.rating = 3)::int AS neutral,
+        count(*) FILTER (WHERE r.rating <= 2)::int AS negative
+      FROM "Review" r
+      JOIN "Business" b ON b.id = r."businessId"
+      JOIN "User" u ON u.id = b."userId"
+      WHERE r.source = 'google'
+        AND u.role = 'user'
+        AND r."createdAtGoogle" >= now() - (${rangeDays + 1}::int * interval '1 day')
+      GROUP BY 1
+    ),
+    replies AS (
+      SELECT
+        to_char(("sentAt" AT TIME ZONE 'UTC') AT TIME ZONE ${ADMIN_TIMEZONE}, 'YYYY-MM-DD') AS day,
+        count(*)::int AS n
+      FROM "ReviewResponse"
+      WHERE "sentAt" >= now() - (${rangeDays + 1}::int * interval '1 day')
+      GROUP BY 1
+    ),
+    signups AS (
+      SELECT
+        to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${ADMIN_TIMEZONE}, 'YYYY-MM-DD') AS day,
+        count(*)::int AS n
+      FROM "User"
+      WHERE role = 'user'
+        AND "createdAt" >= now() - (${rangeDays + 1}::int * interval '1 day')
+      GROUP BY 1
+    )
+    SELECT
+      days.day,
+      coalesce(reviews.positive, 0) AS "reviewsPositive",
+      coalesce(reviews.neutral, 0) AS "reviewsNeutral",
+      coalesce(reviews.negative, 0) AS "reviewsNegative",
+      coalesce(replies.n, 0) AS replies,
+      coalesce(signups.n, 0) AS signups
+    FROM days
+    LEFT JOIN reviews ON reviews.day = days.day
+    LEFT JOIN replies ON replies.day = days.day
+    LEFT JOIN signups ON signups.day = days.day
+    ORDER BY days.day
+  `;
+}
+
 export async function getAdminOverviewData(rangeDays = 30) {
   const now = new Date();
   const start = new Date(now.getTime() - rangeDays * DAY_MS);
@@ -134,6 +205,7 @@ export async function getAdminOverviewData(rangeDays = 30) {
     usersTotal,
     incompleteSignups,
     recentActivity,
+    daily,
   ] = await Promise.all([
     loadBusinessHealthRows(),
     prisma.jobRun.findFirst({
@@ -179,6 +251,7 @@ export async function getAdminOverviewData(rangeDays = 30) {
         targetBusiness: { select: { id: true, name: true } },
       },
     }),
+    loadDailySeries(rangeDays),
   ]);
 
   // Customers only: staff accounts with their own test businesses are excluded.
@@ -229,5 +302,6 @@ export async function getAdminOverviewData(rangeDays = 30) {
       ];
     })(),
     recentActivity,
+    daily,
   };
 }
