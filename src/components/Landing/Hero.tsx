@@ -30,7 +30,7 @@ export default function Hero() {
             data-testid="hero-badge"
             className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-300 ring-1 ring-inset ring-blue-500/30 uppercase tracking-[0.2em]"
           >
-            <Sparkles className="h-3.5 w-3.5" /> Google review replies, on autopilot
+            <Sparkles className="h-3.5 w-3.5" /> Your AI review agent for Google
           </span>
 
           <h1
@@ -43,8 +43,8 @@ export default function Hero() {
           </h1>
 
           <p data-testid="hero-subtitle" className="mt-6 max-w-xl text-lg text-zinc-300 leading-relaxed">
-            Respondly replies to every new Google review for you, using your own templates or AI that reads what the
-            customer actually wrote. Set your rules once. Replies go out every evening.
+            Respondly is an AI agent that answers every new Google review for you. Set your rules once, and every
+            evening it replies with your own templates or with AI that reads what the customer actually wrote.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row sm:items-center gap-4">

@@ -31,11 +31,12 @@ const softwareLd = getJsonLdSoftwareApplication(siteUrl, "home");
 export const metadata: Metadata = {
   title: `${SITE_NAME} — AI & Templates for Google Review Replies`,
   description:
-    "Respondly replies to your new Google reviews automatically, with your own templates or AI that reads what the customer wrote. From A$9.99/month, 90-day free trial.",
+    "Respondly is an AI agent that replies to your new Google reviews automatically, with your own templates or AI that reads what the customer wrote. From A$9.99/month, 90-day free trial.",
   keywords: joinKeywords([
     ...DEFAULT_KEYWORDS,
     "Google reviews software",
     "AI review response tool",
+    "AI review agent",
     "multi-location Google reviews",
   ]),
   alternates: {
