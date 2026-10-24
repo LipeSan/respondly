@@ -7,6 +7,7 @@ import BeforeAfter from "../components/Landing/BeforeAfter";
 import MockupShowcase from "../components/Landing/MockupShowcase";
 import HowItWorks from "../components/Landing/HowItWorks";
 import Features from "../components/Landing/Features";
+import ReviewKit from "../components/Landing/ReviewKit";
 import Pricing from "../components/Landing/Pricing";
 import FAQ from "../components/Landing/FAQ";
 import FinalCTA from "../components/Landing/FinalCTA";
@@ -79,6 +80,7 @@ export default function LandingPage() {
         <MockupShowcase />
         <HowItWorks />
         <Features />
+        <ReviewKit />
         <Pricing />
         <FAQ />
         <FinalCTA />

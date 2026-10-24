@@ -31,6 +31,7 @@ export default function Footer() {
           <p className="font-heading text-xs uppercase tracking-[0.2em] text-zinc-400 font-semibold">Product</p>
           <ul className="mt-4 space-y-2 text-sm text-zinc-400">
             <li><a href="#features" className="hover:text-white transition">Features</a></li>
+            <li><a href="#kit" className="hover:text-white transition">Store</a></li>
             <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
             <li><a href="#faq" className="hover:text-white transition">FAQ</a></li>
           </ul>
