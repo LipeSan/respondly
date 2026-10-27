@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { JobType } from "@prisma/client";
 import { isJobRunningRecently } from "@/lib/jobLock";
+import { getCurrentAdminUser, recordAdminAudit } from "@/lib/admin";
 import { generateReviewInsight, isInsightDue } from "@/lib/insights/generate";
 import crypto from "crypto";
 
@@ -33,8 +34,17 @@ async function handle(req: Request) {
 
   const secret = process.env.CRON_SECRET;
   const provided = bearer ?? header ?? query ?? "";
-  if (!secret || !provided || !timingSafeEqual(provided, secret)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const cronAuthorized = Boolean(secret && provided && timingSafeEqual(provided, secret));
+
+  // Without the secret, a signed-in full admin can run it from the browser
+  // (e.g. a one-off ?asOf= backfill). Support-level admins can't.
+  let adminUserId: string | null = null;
+  if (!cronAuthorized) {
+    const adminContext = await getCurrentAdminUser();
+    if (adminContext?.accessLevel !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    adminUserId = adminContext.user.id;
   }
 
   const take = Math.min(Number(url.searchParams.get("take") ?? 20), 100);
@@ -47,6 +57,14 @@ async function handle(req: Request) {
   const asOf = asOfParam ? new Date(`${asOfParam}T00:00:00.000Z`) : undefined;
   if (asOf && (!/^\d{4}-\d{2}-\d{2}$/.test(asOfParam ?? "") || Number.isNaN(asOf.getTime()) || asOf > new Date())) {
     return NextResponse.json({ error: "asOf must be a past date as YYYY-MM-DD" }, { status: 400 });
+  }
+  if (adminUserId) {
+    await recordAdminAudit({
+      actorUserId: adminUserId,
+      action: "insights_job_run",
+      targetBusinessId: onlyBusinessId,
+      metadata: { asOf: asOfParam, take },
+    });
   }
   const startedAt = Date.now();
 
