@@ -8,11 +8,12 @@ const mainNavItems = [
   { name: "Dashboard", href: "/dashboard" },
   { name: "Configuration", href: "/configuration" },
   { name: "Reviews", href: "/reviews" },
-  { name: "Insights", href: "/insights" },
   { name: "Rules", href: "/rules" },
   { name: "Templates", href: "/templates" },
 ];
 
+// Insights is hidden from the customer menu until launch; the URL still works.
+const insightsNavItem = { name: "Insights", href: "/insights" };
 const shopNavItem = { name: "Shop", href: "/shop" };
 
 const adminNavItems = [
@@ -98,7 +99,9 @@ export function Sidebar() {
   const isAdminSection = pathname?.startsWith("/admin");
   const navItems = isAdminSection
     ? adminNavItems
-    : [...mainNavItems, shopNavItem];
+    : isAdmin
+      ? [...mainNavItems.flatMap((i) => (i.href === "/reviews" ? [i, insightsNavItem] : [i])), shopNavItem]
+      : [...mainNavItems, shopNavItem];
   const menuLabel = isAdminSection ? "Admin" : "Menu";
 
   return (
