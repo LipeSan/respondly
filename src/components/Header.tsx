@@ -30,6 +30,14 @@ function NavIcon({ name, className }: { name: string; className: string }) {
       </svg>
     );
   }
+  if (name === "Insights") {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 18h6M10 21h4" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3a6 6 0 0 0-3.6 10.8c.6.45 1 1.15 1 1.9V16h5.2v-.3c0-.75.4-1.45 1-1.9A6 6 0 0 0 12 3Z" />
+      </svg>
+    );
+  }
   if (name === "Rules") {
     return (
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,6 +109,7 @@ export function Header({ businessName, userName, userEmail, isAdmin = false }: H
     : [
         { name: "Dashboard", href: "/dashboard" },
         { name: "Reviews", href: "/reviews" },
+        { name: "Insights", href: "/insights" },
         { name: "Rules", href: "/rules" },
         { name: "Templates", href: "/templates" },
         { name: "Shop", href: "/shop" },

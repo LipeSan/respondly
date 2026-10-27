@@ -12,13 +12,14 @@ const STUCK_AFTER_MS = 15 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const statusFilters = ["all", "success", "failed", "running"] as const;
-const typeFilters = ["all", "sync_reviews", "auto_responder"] as const;
+const typeFilters = ["all", "sync_reviews", "auto_responder", "review_insights"] as const;
 type StatusFilter = (typeof statusFilters)[number];
 type TypeFilter = (typeof typeFilters)[number];
 
 const typeLabels: Record<Exclude<TypeFilter, "all">, string> = {
   sync_reviews: "Review sync",
   auto_responder: "Auto-replies",
+  review_insights: "Review insights",
 };
 
 function pick<T extends string>(value: string | undefined, allowed: readonly T[]): T {

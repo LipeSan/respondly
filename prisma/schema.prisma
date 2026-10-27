@@ -96,6 +96,7 @@ model Business {
   trialInviteRedemptions TrialInviteRedemption[]
   adminAuditLogs       AdminAuditLog[] @relation("AdminAuditTargetBusiness")
   shopOrders           ShopOrder[]
+  reviewInsights       ReviewInsight[]
   createdAt            DateTime          @default(now())
 }
 
@@ -186,6 +187,7 @@ model ReviewResponse {
 enum JobType {
   sync_reviews
   auto_responder
+  review_insights
 }
 
 enum JobStatus {
@@ -367,5 +369,44 @@ model ShopOrder {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  @@index([businessId, createdAt])
+}
+
+enum ReviewInsightStatus {
+  ready
+  insufficient_data // too few written reviews in the window to draw honest conclusions
+  failed
+}
+
+// Monthly AI analysis of a business's reviews over a rolling window
+// (default 3 months). One row per period so month-over-month trends can be
+// shown by comparing against the previous insight. Paid plans only.
+model ReviewInsight {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  status ReviewInsightStatus @default(ready)
+
+  // Window analyzed, based on Review.createdAtGoogle.
+  periodStart DateTime
+  periodEnd   DateTime
+
+  reviewCount  Int    @default(0)
+  commentCount Int    @default(0) // reviews with written text
+  avgRating    Float?
+
+  // InsightItem[] (see src/lib/insights/schema.ts), up to 3 each:
+  // [{ theme, title, summary, mentions, avgRating, reviewIds, suggestion }]
+  strengths    Json?
+  improvements Json?
+
+  model     String? // LLM model id used to generate it
+  error     String?
+  emailedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([businessId, periodEnd])
   @@index([businessId, createdAt])
 }

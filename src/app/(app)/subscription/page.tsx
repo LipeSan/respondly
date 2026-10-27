@@ -106,6 +106,7 @@ const starterBenefits = [
     "Unlimited templates",
     "Manual mode to approve replies before posting",
     "New reviews checked and answered daily",
+    "Monthly insights: what customers love and what to improve",
 ];
 
 const proBenefits = [
