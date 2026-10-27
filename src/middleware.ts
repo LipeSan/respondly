@@ -19,6 +19,7 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     "/dashboard",
     "/onboarding",
     "/reviews",
+    "/insights",
     "/rules",
     "/templates",
     "/settings",
