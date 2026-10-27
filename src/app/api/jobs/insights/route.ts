@@ -40,6 +40,14 @@ async function handle(req: Request) {
   const take = Math.min(Number(url.searchParams.get("take") ?? 20), 100);
   // ?businessId= forces a run for one business (still plan-gated), e.g. for testing.
   const onlyBusinessId = url.searchParams.get("businessId");
+  // ?asOf=YYYY-MM-DD backfills as if the run happened that day: the report
+  // covers the 3 months before it (e.g. 2026-10-01 -> Jul 1 to Sep 30).
+  // Businesses that already have a report on or after that date are skipped.
+  const asOfParam = url.searchParams.get("asOf");
+  const asOf = asOfParam ? new Date(`${asOfParam}T00:00:00.000Z`) : undefined;
+  if (asOf && (!/^\d{4}-\d{2}-\d{2}$/.test(asOfParam ?? "") || Number.isNaN(asOf.getTime()) || asOf > new Date())) {
+    return NextResponse.json({ error: "asOf must be a past date as YYYY-MM-DD" }, { status: 400 });
+  }
   const startedAt = Date.now();
 
   // Paid plans only; generateReviewInsight re-checks billing state itself.
@@ -58,14 +66,14 @@ async function handle(req: Request) {
 
   for (const b of businesses) {
     if (generated >= take || Date.now() - startedAt > TIME_BUDGET_MS) break;
-    if (!onlyBusinessId && !(await isInsightDue(b.id))) continue;
+    if (!onlyBusinessId && !(await isInsightDue(b.id, asOf))) continue;
     if (await isJobRunningRecently(b.id, JobType.review_insights, 300)) {
       results.push({ businessId: b.id, businessName: b.name, skipped: true, reason: "already_running" });
       continue;
     }
 
     try {
-      const r = await generateReviewInsight(b.id);
+      const r = await generateReviewInsight(b.id, asOf);
       if (!r.skipped) generated += 1;
       results.push({ businessId: b.id, businessName: b.name, ...r });
     } catch (e: unknown) {
@@ -77,6 +85,7 @@ async function handle(req: Request) {
   return NextResponse.json({
     ok: true,
     eligibleBusinesses: businesses.length,
+    asOf: asOfParam,
     generated,
     results,
     ranAt: new Date().toISOString(),
