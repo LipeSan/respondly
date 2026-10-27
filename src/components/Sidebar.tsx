@@ -94,7 +94,7 @@ function NavIcon({ name, className }: { name: string; className: string }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const isAdminSection = pathname?.startsWith("/admin");
   const navItems = isAdminSection
