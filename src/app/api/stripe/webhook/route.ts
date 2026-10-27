@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { handleShopCheckoutEvent, isShopCheckoutSession } from "@/lib/shopOrders";
+import { generateInsightInBackground } from "@/lib/insights/trigger";
 
 type SubscriptionWithPeriodEnd = Stripe.Subscription & {
   current_period_end?: number;
@@ -548,6 +549,11 @@ export async function POST(req: Request) {
       await consumeTrialInvite({ businessId, inviteCode });
     }
 
+    // First insights report right away if Google is already connected.
+    if (sub.status === "active" || sub.status === "trialing") {
+      generateInsightInBackground(businessId, "checkout");
+    }
+
     return NextResponse.json({ received: true });
   }
 
@@ -636,6 +642,10 @@ export async function POST(req: Request) {
         status: s.status,
         currentPeriodEnd,
       });
+
+      if (s.status === "active" || s.status === "trialing") {
+        generateInsightInBackground(businessId, "checkout");
+      }
     }
 
     const inviteCode = String(session.metadata?.inviteCode ?? "").trim();

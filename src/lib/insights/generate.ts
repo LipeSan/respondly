@@ -2,8 +2,8 @@ import { prisma } from "@/lib/db";
 import { startJob, finishJobSuccess, finishJobFailed } from "@/lib/jobs";
 import { getBusinessPlan } from "@/lib/plan";
 import { JobType, Prisma } from "@prisma/client";
+import { isReportDue, startOfUtcDay } from "@/lib/insights/schedule";
 import {
-  INSIGHT_INTERVAL_DAYS,
   INSIGHT_WINDOW_MONTHS,
   MIN_COMMENTS_FOR_INSIGHT,
   canUseInsights,
@@ -16,10 +16,6 @@ import {
 const MAX_REVIEWS_IN_PROMPT = 300;
 const MAX_COMMENT_CHARS = 600;
 const MIN_STRENGTH_RATING = 4;
-
-function startOfUtcDay(d: Date) {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
 
 function subtractMonths(d: Date, months: number) {
   const r = new Date(d);
@@ -142,9 +138,7 @@ export async function isInsightDue(businessId: string, now = new Date()) {
     orderBy: { periodEnd: "desc" },
     select: { periodEnd: true },
   });
-  if (!latest) return true;
-  const ageDays = (now.getTime() - latest.periodEnd.getTime()) / 86_400_000;
-  return ageDays >= INSIGHT_INTERVAL_DAYS;
+  return isReportDue(latest?.periodEnd ?? null, now);
 }
 
 /**

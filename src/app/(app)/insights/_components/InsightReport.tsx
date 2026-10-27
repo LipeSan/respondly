@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 import type { ReviewInsight } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { nextReportDate } from "@/lib/insights/schedule";
 import {
-  INSIGHT_INTERVAL_DAYS,
   INSIGHT_WINDOW_MONTHS,
   MIN_COMMENTS_FOR_INSIGHT,
   type InsightItem,
 } from "@/lib/insights/schema";
 import { Card } from "@/components/Card";
-import { EmptyState, addDays, formatPeriod, parseItems, periodFormatter } from "./shared";
+import { EmptyState, formatPeriod, parseItems, periodFormatter } from "./shared";
 
 type Kind = "strength" | "improvement";
 type Quote = { id: string; rating: number; authorName: string | null; comment: string | null };
@@ -279,7 +279,7 @@ export async function InsightReport({ insight, isLatest }: { insight: ReviewInsi
   const strengths = parseItems(insight.strengths);
   const improvements = parseItems(insight.improvements);
 
-  const nextReport = addDays(insight.periodEnd, INSIGHT_INTERVAL_DAYS);
+  const nextReport = nextReportDate(insight.periodEnd);
   const daysToNext = daysUntil(nextReport);
   const writtenShare = insight.reviewCount ? Math.round((insight.commentCount / insight.reviewCount) * 100) : 0;
   const topStrength = strengths[0];

@@ -4,8 +4,7 @@ import { z } from "zod";
 // below this the report is stored as `insufficient_data`.
 export const MIN_COMMENTS_FOR_INSIGHT = 10;
 export const INSIGHT_WINDOW_MONTHS = 3;
-// A new insight is due once the latest one is this old.
-export const INSIGHT_INTERVAL_DAYS = 30;
+// When a new insight is due lives in ./schedule.ts (last day of each month).
 
 export const insightItemSchema = z.object({
   // Stable snake_case key (e.g. "wait_time") reused across months so the

@@ -3,6 +3,7 @@ import { fetchMockReviews } from "@/lib/reviews/providers/mock";
 import { fetchGoogleReviews } from "@/lib/reviews/providers/google";
 import type { ExternalReview } from "@/lib/reviews/providers/mock";
 import { finishJobFailed, finishJobSuccess, startJob } from "../jobs";
+import { generateInsightInBackground } from "@/lib/insights/trigger";
 import { JobType, Prisma } from "@prisma/client";
 
 function toReviewData(r: ExternalReview) {
@@ -100,6 +101,9 @@ export async function syncReviewsForBusiness(
             });
 
             connectedAtSet = connectedAt.toISOString();
+
+            // Reviews are in now: first insights report if they already pay.
+            generateInsightInBackground(businessId, "first_sync");
         }
 
         await finishJobSuccess(job.id, {
