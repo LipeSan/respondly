@@ -12,6 +12,8 @@ const mainNavItems = [
   { name: "Templates", href: "/templates" },
 ];
 
+// Insights is hidden from the customer menu until launch; the URL still works.
+const insightsNavItem = { name: "Insights", href: "/insights" };
 const shopNavItem = { name: "Shop", href: "/shop" };
 
 const adminNavItems = [
@@ -39,6 +41,14 @@ function NavIcon({ name, className }: { name: string; className: string }) {
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h8M8 14h6" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z" />
+      </svg>
+    );
+  }
+  if (name === "Insights") {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 18h6M10 21h4" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3a6 6 0 0 0-3.6 10.8c.6.45 1 1.15 1 1.9V16h5.2v-.3c0-.75.4-1.45 1-1.9A6 6 0 0 0 12 3Z" />
       </svg>
     );
   }
@@ -84,12 +94,14 @@ function NavIcon({ name, className }: { name: string; className: string }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const isAdminSection = pathname?.startsWith("/admin");
   const navItems = isAdminSection
     ? adminNavItems
-    : [...mainNavItems, shopNavItem];
+    : isAdmin
+      ? [...mainNavItems.flatMap((i) => (i.href === "/reviews" ? [i, insightsNavItem] : [i])), shopNavItem]
+      : [...mainNavItems, shopNavItem];
   const menuLabel = isAdminSection ? "Admin" : "Menu";
 
   return (
