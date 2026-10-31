@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { getCurrentAdminUser } from "@/lib/admin";
+import { NavigationLoadingArea } from "@/components/LoadingOverlay";
 import { AdminNav } from "./AdminNav";
 
 export default async function AdminLayout({
@@ -32,7 +33,9 @@ export default async function AdminLayout({
             <AdminNav />
           </div>
         </aside>
-        <main className="min-w-0">{children}</main>
+        <main className="min-w-0">
+          <NavigationLoadingArea>{children}</NavigationLoadingArea>
+        </main>
       </div>
     </div>
   );
