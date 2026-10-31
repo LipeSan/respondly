@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { INSIGHT_WINDOW_MONTHS } from "@/lib/insights/schema";
+import { FIRST_INSIGHT_WINDOW_MONTHS } from "@/lib/insights/schema";
 import { Text } from "@/components/Text";
 import { EmptyState, getInsightsAccess } from "./_components/shared";
 import { InsightTabs } from "./_components/InsightTabs";
@@ -20,7 +20,7 @@ export default async function InsightsLayout({ children }: { children: ReactNode
     content = (
       <EmptyState
         title="Monthly review insights"
-        body={`Every month we read your last ${INSIGHT_WINDOW_MONTHS} months of reviews and show the 3 things customers love most and the 3 things they want you to improve, with real quotes as proof. Available on Starter and Pro.`}
+        body={`Your first report covers your last ${FIRST_INSIGHT_WINDOW_MONTHS} months of reviews, then every month we read that month's reviews. Each report shows the 3 things customers love most and the 3 things they want you to improve, with real quotes as proof. Available on Starter and Pro.`}
         action={{ href: "/subscription", label: "See plans" }}
       />
     );
