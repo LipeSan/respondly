@@ -17,6 +17,7 @@ import {
 const MAX_REVIEWS_IN_PROMPT = 300;
 const MAX_COMMENT_CHARS = 600;
 const MIN_STRENGTH_RATING = 4;
+const MAX_SINGLE_COMPLAINT_RATING = 3;
 
 function subtractMonths(d: Date, months: number) {
   const r = new Date(d);
@@ -32,6 +33,7 @@ Rules:
 - "strengths" are things customers praise. "improvements" are things customers complain about. A topic belongs to only one list.
 - "theme" is a short, generic snake_case key for the topic, the most conventional name for it (e.g. "wait_time", "staff_friendliness", "coffee_quality", "food_quality", "cleanliness", "pricing", "parking", "atmosphere"). The same topic must always get the same key, so reports can be compared month to month.
 - Find topics from the reviews themselves. Report every topic that 2 or more reviews mention, up to 3 per list. Fewer than 3 is fine; never invent a pattern to fill the list.
+- Exception for "improvements": a complaint in a single review rated 3★ or lower also counts, even if no other review mentions it. List topics with more reviews first.
 - "matchingIds" lists EVERY review id (e.g. "r12") whose text talks about this topic. Go through all reviews; do not include reviews that are about something else.
 - "quoteIds" lists up to 3 ids from "matchingIds" whose text best shows the pattern on its own.
 - "summary" is one or two sentences. "suggestion" is one concrete action for the owner (for strengths: how to keep or promote it).
@@ -103,7 +105,9 @@ export async function callInsightModel(args: { reviews: InsightReview[] }) {
 
   // Map short ids back to real reviews, compute counts from the actual
   // ratings, and drop patterns without at least two real reviews behind them.
-  const resolve = (items: ModelInsightItem[]): InsightItem[] =>
+  // An improvement can also rest on a single low-rated review, so a lone
+  // complaint isn't hidden in a short monthly window.
+  const resolve = (items: ModelInsightItem[], allowSingleLowRating = false): InsightItem[] =>
     items
       .map((item) => {
         const matching = lookup(item.matchingIds);
@@ -119,12 +123,16 @@ export async function callInsightModel(args: { reviews: InsightReview[] }) {
           suggestion: item.suggestion,
         };
       })
-      .filter((item) => item.mentions >= 2)
+      .filter(
+        (item) =>
+          item.mentions >= 2 ||
+          (allowSingleLowRating && item.mentions === 1 && (item.avgRating ?? 5) <= MAX_SINGLE_COMPLAINT_RATING)
+      )
       .sort((a, b) => b.mentions - a.mentions);
 
   // Guard against the model filing a complaint as a strength: a strength
   // needs good ratings, and a theme can only appear in one list.
-  const improvements = resolve(parsed.data.improvements);
+  const improvements = resolve(parsed.data.improvements, true);
   const improvementThemes = new Set(improvements.map((i) => i.theme));
   const strengths = resolve(parsed.data.strengths).filter(
     (i) => !improvementThemes.has(i.theme) && (i.avgRating ?? 0) >= MIN_STRENGTH_RATING

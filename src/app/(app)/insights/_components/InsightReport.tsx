@@ -100,7 +100,7 @@ function TrendBadge({ kind, item, previous }: { kind: Kind; item: InsightItem; p
       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
         good ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
       }`}
-      title={`${previous.mentions} mentions in the last report`}
+      title={`${previous.mentions} ${previous.mentions === 1 ? "mention" : "mentions"} in the last report`}
     >
       {delta > 0 ? "↑" : "↓"} {Math.abs(delta)} vs last report
     </span>
