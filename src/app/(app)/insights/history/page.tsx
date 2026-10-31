@@ -154,6 +154,139 @@ function RatingChart({ reports }: { reports: Report[] }) {
   );
 }
 
+// Round the axis up to 1, 2 or 5 times a power of ten, split into 4 steps.
+function niceAxisMax(value: number) {
+  if (value <= 4) return 4;
+  const step = value / 4;
+  const magnitude = 10 ** Math.floor(Math.log10(step));
+  const nice = [1, 2, 5, 10].map((m) => m * magnitude).find((s) => s >= step) ?? step;
+  return nice * 4;
+}
+
+const VOLUME_SERIES = [
+  { key: "reviewCount", label: "Total reviews", line: "stroke-gray-900", dot: "bg-gray-900" },
+  { key: "commentCount", label: "With text", line: "stroke-blue-500", dot: "bg-blue-500" },
+] as const;
+
+/**
+ * Total reviews and reviews with text per report, oldest to newest. Same
+ * layout as RatingChart: stretched SVG lines with HTML dots on top.
+ */
+function VolumeChart({ reports }: { reports: Report[] }) {
+  const points = reports.map((r, i) => ({ r, href: reportHref(r, i) })).reverse();
+  if (points.length < 2) return null;
+
+  const hi = niceAxisMax(Math.max(...points.map((p) => p.r.reviewCount)));
+  const ticks = [hi, (hi * 3) / 4, hi / 2, hi / 4, 0];
+
+  const x = (i: number) => (i / (points.length - 1)) * 100;
+  const y = (v: number) => ((hi - v) / hi) * 100;
+  // The first report reads 3 months, so its counts aren't comparable to a month.
+  const firstIsLonger = addDays(points[0].r.periodStart, 45) < points[0].r.periodEnd;
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Reviews over time</h2>
+          <p className="mt-0.5 text-sm text-gray-500">
+            One point per monthly report.{firstIsLonger ? " Your first report covers 3 months." : ""}
+          </p>
+        </div>
+        <div className="flex gap-4 text-sm text-gray-500">
+          {VOLUME_SERIES.map((s) => (
+            <span key={s.key} className="flex items-center gap-1.5">
+              <span className={`h-2.5 w-2.5 rounded-full ${s.dot}`} aria-hidden="true" />
+              {s.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6 flex gap-3">
+        {/* y-axis labels */}
+        <div className="relative h-40 w-7 shrink-0 text-right text-xs tabular-nums text-gray-400">
+          {ticks.map((t) => (
+            <span key={t} className="absolute right-0 -translate-y-1/2" style={{ top: `${y(t)}%` }}>
+              {t}
+            </span>
+          ))}
+        </div>
+
+        <div className="min-w-0 flex-1 px-2">
+          <div className="relative h-40">
+            <svg className="absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {ticks.map((t) => (
+                <line key={t} x1="0" x2="100" y1={y(t)} y2={y(t)} className="stroke-gray-100" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+              ))}
+              {VOLUME_SERIES.map((s) => (
+                <polyline
+                  key={s.key}
+                  points={points.map((p, i) => `${x(i)},${y(p.r[s.key])}`).join(" ")}
+                  fill="none"
+                  className={s.line}
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </svg>
+
+            {points.map((p, i) =>
+              VOLUME_SERIES.map((s) => (
+                <span
+                  key={`${p.r.id}-${s.key}`}
+                  className={`pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white ${s.dot}`}
+                  style={{ left: `${x(i)}%`, top: `${y(p.r[s.key])}%` }}
+                  aria-hidden="true"
+                />
+              ))
+            )}
+
+            {/* One hover/focus target per report, spanning the full height. */}
+            {points.map((p, i) => (
+              <Link
+                key={p.r.id}
+                href={p.href}
+                className="group absolute top-0 flex h-full w-8 -translate-x-1/2 justify-center focus-visible:outline-2 focus-visible:outline-gray-900"
+                style={{ left: `${x(i)}%` }}
+                aria-label={`${monthYearFormatter.format(reportMonth(p.r))}: ${p.r.reviewCount} reviews, ${p.r.commentCount} with text`}
+              >
+                <span
+                  className="pointer-events-none absolute z-10 hidden whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg group-hover:block group-focus-visible:block"
+                  style={{ bottom: `calc(${100 - y(p.r.reviewCount)}% + 0.5rem)` }}
+                >
+                  <span className="font-semibold">{monthYearFormatter.format(reportMonth(p.r))}</span>
+                  <span className="text-gray-300">
+                    {" "}
+                    · {p.r.reviewCount} reviews · {p.r.commentCount} with text
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          {/* x-axis labels */}
+          <div className="relative mt-3 h-4 text-xs text-gray-400">
+            {points.map((p, i) => (
+              <span
+                key={p.r.id}
+                className={`absolute whitespace-nowrap ${
+                  i === 0 ? "left-0" : i === points.length - 1 ? "right-0" : "-translate-x-1/2"
+                }`}
+                style={i === 0 || i === points.length - 1 ? undefined : { left: `${x(i)}%` }}
+              >
+                {monthFormatter.format(reportMonth(p.r))}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function RatingDelta({ current, previous }: { current: number | null; previous: number | null }) {
   if (current === null || previous === null) return null;
   const d = Number((current - previous).toFixed(1));
@@ -299,6 +432,7 @@ export default async function InsightsHistoryPage() {
       ) : null}
 
       <RatingChart reports={reports} />
+      <VolumeChart reports={reports} />
 
       {reports.length ? (
         <section>
