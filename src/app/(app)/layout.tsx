@@ -2,6 +2,7 @@ import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { AdminImpersonationBar } from "@/components/AdminImpersonationBar";
+import { NavigationLoadingArea } from "@/components/LoadingOverlay";
 
 export default async function AppLayout({
   children,
@@ -25,7 +26,7 @@ export default async function AppLayout({
         <div className="flex gap-6">
           <Sidebar isAdmin={isAdmin} />
           <div className="flex-1 min-w-0">
-            {children}
+            <NavigationLoadingArea>{children}</NavigationLoadingArea>
           </div>
         </div>
       </div>
