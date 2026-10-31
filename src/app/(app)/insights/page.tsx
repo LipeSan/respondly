@@ -1,4 +1,4 @@
-import { INSIGHT_WINDOW_MONTHS } from "@/lib/insights/schema";
+import { FIRST_INSIGHT_WINDOW_MONTHS } from "@/lib/insights/schema";
 import { EmptyState, getInsightsAccess, getLatestInsight } from "./_components/shared";
 import { InsightReport } from "./_components/InsightReport";
 
@@ -13,7 +13,7 @@ export default async function InsightsPage() {
     return business.initialSyncCompleted ? (
       <EmptyState
         title="Your first report is on its way"
-        body={`We're reading your last ${INSIGHT_WINDOW_MONTHS} months of reviews. Your first insights are usually ready in a few minutes. Refresh this page to check.`}
+        body={`We're reading your last ${FIRST_INSIGHT_WINDOW_MONTHS} months of reviews. Your first insights are usually ready in a few minutes. Refresh this page to check.`}
       />
     ) : (
       <EmptyState

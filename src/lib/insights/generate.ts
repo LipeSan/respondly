@@ -4,7 +4,8 @@ import { getBusinessPlan } from "@/lib/plan";
 import { JobType, Prisma } from "@prisma/client";
 import { isReportDue, startOfUtcDay } from "@/lib/insights/schedule";
 import {
-  INSIGHT_WINDOW_MONTHS,
+  FIRST_INSIGHT_WINDOW_MONTHS,
+  MAX_MONTHLY_WINDOW_DAYS,
   MIN_COMMENTS_FOR_INSIGHT,
   canUseInsights,
   modelInsightResultSchema,
@@ -142,6 +143,24 @@ export async function isInsightDue(businessId: string, now = new Date()) {
 }
 
 /**
+ * The first report covers the last FIRST_INSIGHT_WINDOW_MONTHS months. Each
+ * one after it starts where the previous report ended, so every review is
+ * counted in exactly one monthly report, capped at MAX_MONTHLY_WINDOW_DAYS.
+ * A report regenerated for the same day keeps its own start.
+ */
+async function getPeriodStart(businessId: string, periodEnd: Date) {
+  const previous = await prisma.reviewInsight.findFirst({
+    where: { businessId, status: { in: ["ready", "insufficient_data"] }, periodEnd: { lt: periodEnd } },
+    orderBy: { periodEnd: "desc" },
+    select: { periodEnd: true },
+  });
+  if (!previous) return subtractMonths(periodEnd, FIRST_INSIGHT_WINDOW_MONTHS);
+
+  const earliest = new Date(periodEnd.getTime() - MAX_MONTHLY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  return previous.periodEnd > earliest ? previous.periodEnd : earliest;
+}
+
+/**
  * Generates (or regenerates for today) the review insight for one business.
  * The paid-plan gate lives here so every entry point respects it.
  */
@@ -150,7 +169,7 @@ export async function generateReviewInsight(businessId: string, now = new Date()
   if (!canUseInsights(plan.plan)) return { skipped: true as const, reason: "plan_not_eligible" };
 
   const periodEnd = startOfUtcDay(now);
-  const periodStart = subtractMonths(periodEnd, INSIGHT_WINDOW_MONTHS);
+  const periodStart = await getPeriodStart(businessId, periodEnd);
 
   const job = await startJob(businessId, JobType.review_insights);
 

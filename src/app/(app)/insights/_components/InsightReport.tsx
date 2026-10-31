@@ -3,7 +3,6 @@ import type { ReviewInsight } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { nextReportDate } from "@/lib/insights/schedule";
 import {
-  INSIGHT_WINDOW_MONTHS,
   MIN_COMMENTS_FOR_INSIGHT,
   type InsightItem,
 } from "@/lib/insights/schema";
@@ -290,7 +289,7 @@ export async function InsightReport({ insight, isLatest }: { insight: ReviewInsi
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-            {isLatest ? `Last ${INSIGHT_WINDOW_MONTHS} months` : "Past report"}
+            {isLatest ? "Latest report" : "Past report"}
           </p>
           <h2 className="mt-1 text-xl font-semibold text-gray-900">
             {formatPeriod(insight.periodStart, insight.periodEnd)}
@@ -352,7 +351,7 @@ export async function InsightReport({ insight, isLatest }: { insight: ReviewInsi
         {stats}
         <EmptyState
           title="Not enough reviews yet"
-          body={`We need at least ${MIN_COMMENTS_FOR_INSIGHT} reviews with written comments in the last ${INSIGHT_WINDOW_MONTHS} months to spot real patterns. ${
+          body={`We need at least ${MIN_COMMENTS_FOR_INSIGHT} reviews with written comments in a report period to spot real patterns. ${
             isLatest ? `You have ${insight.commentCount}. We'll check again next month.` : `This period had ${insight.commentCount}.`
           }`}
         />
