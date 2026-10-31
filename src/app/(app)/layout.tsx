@@ -24,7 +24,7 @@ export default async function AppLayout({
       ) : null}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex gap-6">
-          <Sidebar isAdmin={isAdmin} />
+          <Sidebar />
           <div className="flex-1 min-w-0">
             <NavigationLoadingArea>{children}</NavigationLoadingArea>
           </div>

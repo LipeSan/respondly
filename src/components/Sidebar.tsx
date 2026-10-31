@@ -12,7 +12,6 @@ const mainNavItems = [
   { name: "Templates", href: "/templates" },
 ];
 
-// Insights is hidden from the customer menu until launch; the URL still works.
 const insightsNavItem = { name: "Insights", href: "/insights" };
 const shopNavItem = { name: "Shop", href: "/shop" };
 
@@ -94,14 +93,13 @@ function NavIcon({ name, className }: { name: string; className: string }) {
   );
 }
 
-export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
+export function Sidebar() {
   const pathname = usePathname();
   const isAdminSection = pathname?.startsWith("/admin");
+  // Free plans see Insights too; the page shows them the upgrade prompt.
   const navItems = isAdminSection
     ? adminNavItems
-    : isAdmin
-      ? [...mainNavItems.flatMap((i) => (i.href === "/reviews" ? [i, insightsNavItem] : [i])), shopNavItem]
-      : [...mainNavItems, shopNavItem];
+    : [...mainNavItems.flatMap((i) => (i.href === "/reviews" ? [i, insightsNavItem] : [i])), shopNavItem];
   const menuLabel = isAdminSection ? "Admin" : "Menu";
 
   return (
