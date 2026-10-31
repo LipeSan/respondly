@@ -273,6 +273,118 @@ export function buildAdminMessageEmail(args: {
   return { subject, html, text };
 }
 
+type InsightEmailItem = { title: string; summary: string; mentions: number; suggestion: string };
+
+function renderInsightItems(heading: string, color: string, items: InsightEmailItem[]) {
+  if (!items.length) return "";
+  const rows = items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding: 10px 0 0;">
+            <div style="font-weight: 700; color: #ffffff;">${escapeHtml(item.title)}
+              <span style="font-weight: 400; color: #9ca3af; font-size: 12px;">· ${item.mentions} ${item.mentions === 1 ? "review" : "reviews"}</span>
+            </div>
+            <div style="margin-top: 2px; color: #d1d5db;">${escapeHtml(item.summary)}</div>
+            <div style="margin-top: 4px; color: #9ca3af; font-size: 13px;">Tip: ${escapeHtml(item.suggestion)}</div>
+          </td>
+        </tr>`
+    )
+    .join("");
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 16px; border-collapse: separate; border-spacing: 0; border: 1px solid #111827; border-left: 3px solid ${color}; border-radius: 12px;">
+      <tr>
+        <td style="padding: 12px 14px 14px;">
+          <div style="font-weight: 800; color: #ffffff; font-size: 14px;">${heading}</div>
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;">${rows}</table>
+        </td>
+      </tr>
+    </table>`;
+}
+
+function insightItemsText(heading: string, items: InsightEmailItem[]) {
+  if (!items.length) return "";
+  const lines = items.map(
+    (item) =>
+      `- ${item.title} (${item.mentions} ${item.mentions === 1 ? "review" : "reviews"}): ${item.summary}\n  Tip: ${item.suggestion}`
+  );
+  return `\n\n${heading}\n${lines.join("\n")}`;
+}
+
+export function buildInsightReportEmail(args: {
+  name?: string | null;
+  businessName: string;
+  // e.g. "October 2026" for a monthly report, null for the first one.
+  monthLabel: string | null;
+  periodLabel: string;
+  avgRating: number | null;
+  previousAvgRating: number | null;
+  reviewCount: number;
+  commentCount: number;
+  strengths: InsightEmailItem[];
+  improvements: InsightEmailItem[];
+  reportUrl: string;
+}): EmailContent {
+  const displayName = args.name?.trim() ? args.name.trim() : "there";
+  const origin = safeOriginFromUrl(args.reportUrl);
+  const subject = args.monthLabel
+    ? `Your ${args.monthLabel} review insights for ${args.businessName}`
+    : `Your first review insights for ${args.businessName}`;
+  const title = args.monthLabel ? `${args.monthLabel} review insights` : "Your first review insights";
+
+  const rating = args.avgRating !== null ? `${args.avgRating.toFixed(1)}★` : "—";
+  const change =
+    args.avgRating !== null && args.previousAvgRating !== null
+      ? Number((args.avgRating - args.previousAvgRating).toFixed(1))
+      : null;
+  const changeText =
+    change === null ? "" : change === 0 ? "no change from last report" : `${change > 0 ? "up" : "down"} ${Math.abs(change).toFixed(1)} from last report`;
+  const changeColor = change === null || change === 0 ? "#9ca3af" : change > 0 ? "#34d399" : "#fb7185";
+  const reviewsText = `${args.reviewCount} ${args.reviewCount === 1 ? "review" : "reviews"}, ${args.commentCount} with text`;
+  const noIssues = args.improvements.length === 0;
+
+  const bodyHtml = `
+    <p style="margin: 16px 0 0;">Hi ${escapeHtml(displayName)},</p>
+    <p style="margin: 12px 0 0;">Here's what your customers said about <strong>${escapeHtml(args.businessName)}</strong> from ${escapeHtml(args.periodLabel)}.</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 16px; border-collapse: separate; border-spacing: 0; border: 1px solid #111827; border-radius: 12px;">
+      <tr>
+        <td style="padding: 14px;">
+          <div style="font-size: 28px; font-weight: 800; color: #ffffff;">${rating}
+            ${changeText ? `<span style="font-size: 13px; font-weight: 600; color: ${changeColor};">${changeText}</span>` : ""}
+          </div>
+          <div style="margin-top: 2px; color: #9ca3af; font-size: 13px;">Average rating · ${reviewsText}</div>
+        </td>
+      </tr>
+    </table>
+
+    ${renderInsightItems("What customers love", "#10b981", args.strengths)}
+    ${renderInsightItems("What to improve", "#f59e0b", args.improvements)}
+    ${noIssues ? `<p style="margin: 16px 0 0; color: #9ca3af; font-size: 13px;">No complaints to work on this time. Nice work.</p>` : ""}
+  `;
+
+  const text =
+    `Hi ${displayName},\n\n` +
+    `Here's what your customers said about ${args.businessName} from ${args.periodLabel}.\n\n` +
+    `Average rating: ${rating}${changeText ? ` (${changeText})` : ""} · ${reviewsText}` +
+    insightItemsText("What customers love", args.strengths) +
+    insightItemsText("What to improve", args.improvements) +
+    (noIssues ? "\n\nNo complaints to work on this time. Nice work." : "") +
+    `\n\nSee the full report: ${args.reportUrl}\n\n— Respondly`;
+
+  const html = renderEmailLayout({
+    subject,
+    title,
+    preheader: `${rating} average from ${reviewsText}.`,
+    origin,
+    bodyHtml,
+    cta: { label: "See the full report", url: args.reportUrl },
+    footerText: "You're receiving this because you have a Respondly account. Just reply to this email if you need help.",
+  });
+
+  return { subject, html, text };
+}
+
 function safeOriginFromUrl(url: string) {
   try {
     return new URL(url).origin;

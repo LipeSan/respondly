@@ -107,6 +107,7 @@ export function formatAuditAction(action: string) {
     auto_responder_disabled: "Turned auto-replies off",
     shop_order_shipped: "Marked Shop order shipped",
     shop_order_unshipped: "Undid Shop order shipped",
+    insight_report_emailed: "Emailed insights report",
   };
   return labels[action] ?? action.replaceAll("_", " ");
 }
