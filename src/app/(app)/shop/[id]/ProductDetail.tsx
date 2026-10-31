@@ -15,7 +15,7 @@ import { useCart } from "@/components/shop/useCart";
 const FAQ = [
   {
     q: "Do my customers need an app?",
-    a: "No. Modern iPhones and Android phones read NFC out of the box. Older phones can scan the QR code instead.",
+    a: "No. Modern iPhones and Android phones read NFC out of the box. On products with a QR code, older phones can scan it instead.",
   },
   {
     q: "What if I change my Google location?",

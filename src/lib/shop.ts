@@ -69,7 +69,7 @@ export const PRODUCTS: Product[] = [
     price: 34.99,
     visual: "stand",
     colors: ["black", "white"],
-    images: ["/images/shop/table-stand-3.avif", "/images/shop/table-stand-1.avif", "/images/shop/table-stand-2.avif"],
+    images: ["/images/shop/table-stand-1.avif", "/images/shop/table-stand-2.avif", "/images/shop/table-stand-3.avif"],
   },
   {
     id: "review-card",
@@ -98,7 +98,7 @@ export const PRODUCTS: Product[] = [
     description: "Round sticker for doors, windows and payment terminals.",
     longDescription:
       "A round sticker for the front door, the window or right next to the payment terminal. Weatherproof, so it can live outside too.",
-    details: ["NFC + QR code", "10 cm, weatherproof"],
+    details: ["NFC", "10 cm, weatherproof"],
     specs: [
       { label: "Size", value: "10 cm round" },
       { label: "Works with", value: "iPhone and Android, no app needed" },
@@ -108,6 +108,44 @@ export const PRODUCTS: Product[] = [
     visual: "sticker",
     colors: ["black", "white"],
     images: ["/images/shop/review-sticker-1.avif", "/images/shop/review-sticker-2.avif", "/images/shop/review-sticker-3.avif"],
+  },
+  {
+    id: "table-tag",
+    name: "Round table tag",
+    description: "Small round NFC tag that sticks to the centre of each table.",
+    longDescription:
+      "A 3 cm round tag that sticks to the middle of each table, so everyone sitting there can reach it. Customers tap their phone on it before they leave and your Google review page opens straight away.",
+    details: ["NFC", "3 cm round"],
+    specs: [
+      { label: "Size", value: "3 cm round" },
+      { label: "Works with", value: "iPhone and Android, no app needed" },
+    ],
+    inTheBox: ["1 NFC table tag"],
+    price: 12.99,
+    visual: "sticker",
+    colors: ["black", "white"],
+    images: ["/images/shop/table-tag-1.avif", "/images/shop/table-tag-2.avif", "/images/shop/table-tag-3.avif"],
+  },
+  {
+    id: "square-table-tag",
+    name: "Square table tag",
+    description: "Small square NFC tag that sticks to the centre of each table.",
+    longDescription:
+      "A 3 × 3 cm square tag that sticks to the middle of each table, so everyone sitting there can reach it. Customers tap their phone on it before they leave and your Google review page opens straight away.",
+    details: ["NFC", "3 × 3 cm"],
+    specs: [
+      { label: "Size", value: "3 × 3 cm" },
+      { label: "Works with", value: "iPhone and Android, no app needed" },
+    ],
+    inTheBox: ["1 NFC table tag"],
+    price: 12.99,
+    visual: "sticker",
+    colors: ["black", "white"],
+    images: [
+      "/images/shop/square-table-tag-1.avif",
+      "/images/shop/square-table-tag-2.avif",
+      "/images/shop/square-table-tag-3.avif",
+    ],
   },
 ];
 
