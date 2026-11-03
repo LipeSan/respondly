@@ -70,9 +70,9 @@ async function handle(req: Request) {
 
   const take = Math.min(Number(url.searchParams.get("take") ?? 50), 200);
 
-  // businesses with auto responder enabled
+  // businesses with auto responder enabled and a Google location to sync from
   const businesses = await prisma.business.findMany({
-    where: { autoResponderEnabled: true },
+    where: { autoResponderEnabled: true, googleLocationId: { not: null } },
     select: {
       id: true,
       name: true,
@@ -153,8 +153,7 @@ async function handle(req: Request) {
     
     if (!syncRunning) {
       try {
-        const source = b.googleLocationId ? "google" : "mock";
-        syncResult = await syncReviewsForBusiness(b.id, { source });
+        syncResult = await syncReviewsForBusiness(b.id, { source: "google" });
         totalSynced += syncResult?.imported ?? 0;
       } catch (e: unknown) {
         const msg = getErrorMessage(e);

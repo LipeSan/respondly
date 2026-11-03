@@ -35,6 +35,15 @@ export async function syncReviewsForBusiness(
         const source: "google" | "mock" =
             opts?.source ?? (biz.googleLocationId ? "google" : "mock");
 
+        // Mock reviews are a dev aid only: in production they would mark the
+        // business as synced and feed auto-replies and insights with fake data.
+        if (source === "mock" && process.env.VERCEL_ENV === "production") {
+            throw new Error("Google is not connected");
+        }
+        if (source === "google" && !biz.googleLocationId) {
+            throw new Error("Google is not connected");
+        }
+
         let fetched: ExternalReview[] = [];
         if (source === "google") fetched = await fetchGoogleReviews(businessId);
         else fetched = await fetchMockReviews();

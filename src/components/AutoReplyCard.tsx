@@ -25,13 +25,14 @@ export function AutoReplyCard({ initialEnabled }: AutoReplyCardProps) {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to update");
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to update auto-reply settings");
       }
     } catch (error) {
       // Revert on error
       setEnabled(!checked);
       console.error(error);
-      alert("Failed to update auto-reply settings");
+      alert(error instanceof Error ? error.message : "Failed to update auto-reply settings");
     } finally {
       setLoading(false);
     }

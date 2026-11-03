@@ -45,6 +45,12 @@ export async function PUT(req: Request) {
 
   if (Object.prototype.hasOwnProperty.call(body, "autoResponderEnabled")) {
     data.autoResponderEnabled = Boolean(body.autoResponderEnabled);
+    if (data.autoResponderEnabled && !business.googleLocationId) {
+      return NextResponse.json(
+        { error: "Connect your Google Business Profile before turning on auto-replies.", code: "GOOGLE_NOT_CONNECTED" },
+        { status: 400 },
+      );
+    }
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "aiSettings")) {
