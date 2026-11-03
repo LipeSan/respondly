@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+import JsonLd from "@/components/seo/JsonLd";
 import React from "react";
 import Header from "../components/Landing/Header";
 import Hero from "../components/Landing/Hero";
@@ -10,12 +10,14 @@ import Features from "../components/Landing/Features";
 import ReviewKit from "../components/Landing/ReviewKit";
 import Pricing from "../components/Landing/Pricing";
 import FAQ from "../components/Landing/FAQ";
+import { FAQS } from "@/lib/faqs";
 import FinalCTA from "../components/Landing/FinalCTA";
 import Footer from "../components/Landing/Footer";
 import {
   DEFAULT_KEYWORDS,
   DEFAULT_OG_IMAGE,
   SITE_NAME,
+  getJsonLdFaqPage,
   getJsonLdOrganization,
   getJsonLdSoftwareApplication,
   getJsonLdWebSite,
@@ -28,6 +30,7 @@ const siteUrl = getSiteUrl();
 const organizationLd = getJsonLdOrganization(siteUrl);
 const websiteLd = getJsonLdWebSite(siteUrl);
 const softwareLd = getJsonLdSoftwareApplication(siteUrl, "home");
+const faqLd = getJsonLdFaqPage(FAQS);
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} — AI & Templates for Google Review Replies`,
@@ -74,6 +77,12 @@ export default function LandingPage() {
         data-testid="landing-page"
         className="relative min-h-screen bg-black text-white overflow-x-hidden"
       >
+        <a
+          href="#top"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-black"
+        >
+          Skip to content
+        </a>
         <Header />
         <Hero />
         <BeforeAfter />
@@ -86,13 +95,7 @@ export default function LandingPage() {
         <FinalCTA />
         <Footer />
       </main>
-      <Script
-        id="ld-json-home"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify([organizationLd, websiteLd, softwareLd]),
-        }}
-      />
+      <JsonLd data={[organizationLd, websiteLd, softwareLd, faqLd]} />
     </>
   );
 }

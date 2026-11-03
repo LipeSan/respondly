@@ -188,7 +188,7 @@ export default function MockupShowcase() {
             </div>
             <DashboardMock />
           </div>
-          <p className="mt-4 text-xs text-zinc-500">The Respondly dashboard, shown with example data.</p>
+          <p className="mt-4 text-xs text-zinc-400">The Respondly dashboard, shown with example data.</p>
         </motion.div>
       </div>
     </section>

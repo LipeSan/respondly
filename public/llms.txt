@@ -1,0 +1,19 @@
+# Respondly
+
+> Respondly is an AI agent that replies to new Google reviews automatically for local businesses. Owners connect their Google Business Profile, set a rule for each star rating, and every evening (Sydney time) Respondly posts replies using their own templates or AI that reads what the customer wrote.
+
+- Prices are in AUD. Works for any business with a Google Business Profile.
+- Starter (A$9.99/month): one template per star rating, filled in with the customer's name and the business's details.
+- Pro (A$19.99/month): AI replies written from each review, in the reviewer's language, following the owner's tone and instructions.
+- Every plan starts with a 90-day free trial. Cancel any time.
+- Approve-first mode: any rule can keep replies as drafts until the owner publishes them.
+- Only reviews posted after connecting are answered automatically. Old reviews are left alone.
+- Respondly uses Google's official Business Profile API, and access can be disconnected at any time.
+
+## Pages
+
+- [Home, features, pricing and FAQ](https://www.respondly.com.au/)
+- [90-day free trial](https://www.respondly.com.au/promo/trial)
+- [Contact](https://www.respondly.com.au/contact)
+- [Privacy policy](https://www.respondly.com.au/privacy)
+- [Terms and conditions](https://www.respondly.com.au/terms)

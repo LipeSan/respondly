@@ -33,9 +33,10 @@ export function getJsonLdOrganization(siteUrl: string) {
     "@type": "Organization",
     name: SITE_NAME,
     url: siteUrl,
-    logo: `${siteUrl}/favicon.ico`,
+    logo: `${siteUrl}/logo.png`,
     email: "support@respondly.com.au",
-    sameAs: [],
+    areaServed: "AU",
+    sameAs: ["https://www.instagram.com/respondly.app/"],
   };
 }
 
@@ -53,17 +54,23 @@ export function getJsonLdSoftwareApplication(siteUrl: string, variant: "home" | 
     offers: [
       {
         "@type": "Offer",
-        price: variant === "promo" ? "0" : "0",
-        priceCurrency: "USD",
+        name: "Starter",
+        price: "9.99",
+        priceCurrency: "AUD",
+        description: "Template replies for every star rating. 90-day free trial.",
+        url: `${siteUrl}/#pricing`,
+      },
+      {
+        "@type": "Offer",
+        name: "Pro",
+        price: "19.99",
+        priceCurrency: "AUD",
+        description: "AI replies written from each review, in the reviewer's language. 90-day free trial.",
+        url: `${siteUrl}/#pricing`,
       },
     ],
     description,
     url: variant === "promo" ? `${siteUrl}/promo/trial` : siteUrl,
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "5",
-      ratingCount: "100",
-    },
   };
 }
 
@@ -73,5 +80,17 @@ export function getJsonLdWebSite(siteUrl: string) {
     "@type": "WebSite",
     name: SITE_NAME,
     url: siteUrl,
+  };
+}
+
+export function getJsonLdFaqPage(faqs: { q: string; a: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
   };
 }

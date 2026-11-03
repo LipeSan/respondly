@@ -30,8 +30,8 @@ export default function Header({ showNav = true }: HeaderProps) {
   return (
     <motion.header
       data-testid="site-header"
-      initial={{ y: -30, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
+      initial={false}
+      animate={{ y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
       className={`fixed top-0 inset-x-0 z-50 transition-all ${
         scrolled ? "bg-black/70 backdrop-blur-xl border-b border-white/10" : "bg-transparent"

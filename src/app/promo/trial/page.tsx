@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import { PromoTrialContent } from "@/app/promo/trial/PromoTrialContent";
 import {
@@ -66,13 +66,7 @@ export default function PromoTrialPage() {
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
         <PromoTrialContent />
       </Suspense>
-      <Script
-        id="ld-json-promo"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify([organizationLd, softwareLd]),
-        }}
-      />
+      <JsonLd data={[organizationLd, softwareLd]} />
     </>
   );
 }

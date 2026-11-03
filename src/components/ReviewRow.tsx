@@ -13,7 +13,7 @@ export type ReviewRowData = {
 
 export function Stars({ n, size = "h-3.5 w-3.5" }: { n: number; size?: string }) {
   return (
-    <span className="inline-flex gap-0.5" aria-label={`${n} out of 5 stars`}>
+    <span className="inline-flex gap-0.5" role="img" aria-label={`${n} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((i) => (
         <svg
           key={i}
