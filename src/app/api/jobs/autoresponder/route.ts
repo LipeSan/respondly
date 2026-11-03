@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const take = Math.min(Number(url.searchParams.get("take") ?? 50), 200);
 
   const businesses = await prisma.business.findMany({
-    where: { autoResponderEnabled: true },
+    where: { autoResponderEnabled: true, googleLocationId: { not: null } },
     select: { id: true, name: true },
     take,
     orderBy: { createdAt: "desc" },
