@@ -21,8 +21,8 @@ export default function Hero() {
 
       <div className="relative max-w-7xl mx-auto px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 24 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.8 }}
           className="lg:col-span-7"
         >
@@ -66,8 +66,8 @@ export default function Hero() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ scale: 0.96 }}
+          animate={{ scale: 1 }}
           transition={{ duration: 0.9, delay: 0.2 }}
           className="lg:col-span-5 relative"
         >
@@ -121,7 +121,7 @@ const EXAMPLES: Record<number, { name: string; review: string; starter: string; 
 
 function Stars({ n, size = "h-3 w-3" }: { n: number; size?: string }) {
   return (
-    <div className="flex gap-0.5" aria-label={`${n} out of 5 stars`}>
+    <div className="flex gap-0.5" role="img" aria-label={`${n} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((i) => (
         <Star key={i} className={`${size} ${i <= n ? "text-yellow-400 fill-yellow-400" : "text-zinc-600"}`} />
       ))}
@@ -174,7 +174,7 @@ function ReviewSimulator() {
         ))}
       </div>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={`${rating}-${plan}`}
           initial={{ opacity: 0, y: 8 }}
@@ -217,7 +217,7 @@ function ReviewSimulator() {
         </motion.div>
       </AnimatePresence>
 
-      <p className="text-[11px] text-zinc-500">Example reviews and replies.</p>
+      <p className="text-[11px] text-zinc-400">Example reviews and replies.</p>
     </div>
   );
 }

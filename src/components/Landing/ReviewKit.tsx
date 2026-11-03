@@ -74,7 +74,7 @@ export default function ReviewKit() {
               <Link href="/login?next=/shop" data-testid="kit-cta">
                 <Button className="!w-auto !px-8">Go to shop</Button>
               </Link>
-              <p className="mt-3 text-sm text-zinc-500">Log in or create an account to order.</p>
+              <p className="mt-3 text-sm text-zinc-400">Log in or create an account to order.</p>
             </div>
           </div>
 

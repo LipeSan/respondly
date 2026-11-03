@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+import JsonLd from "@/components/seo/JsonLd";
 import Link from "next/link";
 import Header from "@/components/Landing/Header";
 import Footer from "@/components/Landing/Footer";
@@ -18,7 +18,7 @@ const description =
   "Respondly Privacy Policy. Learn how we collect, use, and protect your data — account information, Google Business Profile integrations, usage data, and your data retention and security practices.";
 
 export const metadata: Metadata = {
-  title,
+  title: "Privacy Policy",
   description,
   keywords: joinKeywords([
     ...DEFAULT_KEYWORDS,
@@ -62,12 +62,7 @@ export default function PrivacyPage() {
   const orgLd = getJsonLdOrganization(siteUrl);
   return (
     <>
-      <Script
-        id="ld-json-privacy-org"
-        type="application/ld+json"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
-      />
+      <JsonLd data={orgLd} />
       <main data-testid="privacy-page" className="relative min-h-screen bg-black text-white overflow-x-hidden">
         <Header showNav={false} />
 

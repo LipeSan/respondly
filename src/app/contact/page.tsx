@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import JsonLd from "@/components/seo/JsonLd";
 import {
   SITE_NAME,
   DEFAULT_KEYWORDS,
@@ -7,7 +8,6 @@ import {
   joinKeywords,
   getJsonLdOrganization,
 } from "@/lib/seo";
-import Script from "next/script";
 import ContactPageContent from "./ContactPageContent";
 
 const siteUrl = getSiteUrl();
@@ -16,7 +16,7 @@ const description =
   "Get in touch with the Respondly team. Questions about Google review automation, billing, setup, or partnerships — send us a message and we'll reply promptly.";
 
 export const metadata: Metadata = {
-  title,
+  title: "Contact",
   description,
   keywords: joinKeywords([
     ...DEFAULT_KEYWORDS,
@@ -60,12 +60,7 @@ export default function ContactPage() {
   const orgLd = getJsonLdOrganization(siteUrl);
   return (
     <>
-      <Script
-        id="ld-json-contact-org"
-        type="application/ld+json"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
-      />
+      <JsonLd data={orgLd} />
       <ContactPageContent />
     </>
   );

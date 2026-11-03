@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+import JsonLd from "@/components/seo/JsonLd";
 import Link from "next/link";
 import Header from "@/components/Landing/Header";
 import Footer from "@/components/Landing/Footer";
@@ -18,7 +18,7 @@ const description =
   "Respondly Terms & Conditions. Service agreement covering account access, Google Business Profile integrations, AI-generated content, acceptable use, billing, intellectual property, and liability.";
 
 export const metadata: Metadata = {
-  title,
+  title: "Terms & Conditions",
   description,
   keywords: joinKeywords([
     ...DEFAULT_KEYWORDS,
@@ -62,12 +62,7 @@ export default function TermsPage() {
   const orgLd = getJsonLdOrganization(siteUrl);
   return (
     <>
-      <Script
-        id="ld-json-terms-org"
-        type="application/ld+json"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
-      />
+      <JsonLd data={orgLd} />
       <main data-testid="terms-page" className="relative min-h-screen bg-black text-white overflow-x-hidden">
         <Header showNav={false} />
 

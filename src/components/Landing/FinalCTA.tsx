@@ -33,7 +33,7 @@ export default function FinalCTA() {
             <Button className="!w-auto !px-10">Start 90-day free trial</Button>
           </Link>
         </div>
-        <p className="mt-4 text-sm text-zinc-500">From A$9.99/month after your trial. Cancel anytime.</p>
+        <p className="mt-4 text-sm text-zinc-400">From A$9.99/month after your trial. Cancel anytime.</p>
       </div>
     </section>
   );

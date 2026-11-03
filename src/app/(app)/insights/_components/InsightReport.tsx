@@ -53,7 +53,7 @@ function Highlight({ tone, label, title }: { tone: "strength" | "improvement"; l
 
 function Stars({ rating }: { rating: number }) {
   return (
-    <span className="text-amber-500" aria-label={`${rating} out of 5 stars`}>
+    <span className="text-amber-500" role="img" aria-label={`${rating} out of 5 stars`}>
       {"★".repeat(rating)}
       <span className="text-gray-300">{"★".repeat(Math.max(0, 5 - rating))}</span>
     </span>
