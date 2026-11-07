@@ -65,6 +65,12 @@ export async function POST(
   if (review.response.sentAt) {
     return NextResponse.json({ ok: true, alreadyPublished: true });
   }
+  if (review.removedAt) {
+    return NextResponse.json(
+      { error: "This review is no longer on Google, so the reply can't be published." },
+      { status: 409 },
+    );
+  }
 
   try {
     const finalTextToSend = requestedFinalText || review.response.finalText;

@@ -45,7 +45,12 @@ type DashboardMetrics = {
   };
   series: Array<{ start: string; replied: number; notReplied: number }>;
   bucket: "day" | "week";
-  ratings: { distribution: Record<"1" | "2" | "3" | "4" | "5", number>; total: number; average: number | null };
+  ratings: {
+    distribution: Record<"1" | "2" | "3" | "4" | "5", number>;
+    total: number;
+    average: number | null;
+    removed: number;
+  };
   attention: {
     draftsCount: number;
     drafts: ReviewListItem[];
@@ -391,6 +396,15 @@ function RatingBreakdown({ ratings }: { ratings: DashboardMetrics["ratings"] }) 
           );
         })}
       </div>
+      {ratings.removed > 0 ? (
+        <p className="mt-4 text-xs text-gray-500">
+          {ratings.removed === 1 ? "1 review was" : `${ratings.removed} reviews were`} removed from Google and{" "}
+          {ratings.removed === 1 ? "isn't" : "aren't"} counted.{" "}
+          <Link href="/reviews?status=removed" className="font-semibold text-blue-600 hover:text-blue-500">
+            View
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

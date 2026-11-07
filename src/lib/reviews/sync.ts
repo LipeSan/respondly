@@ -6,6 +6,41 @@ import { finishJobFailed, finishJobSuccess, startJob } from "../jobs";
 import { generateInsightInBackground } from "@/lib/insights/trigger";
 import { JobType, Prisma } from "@prisma/client";
 
+// A full fetch missing more than this share of our live reviews looks like an
+// API hiccup rather than real deletions, so nothing is marked removed.
+const MAX_REMOVED_SHARE = 0.3;
+const MIN_REMOVED_GUARD = 5;
+
+/**
+ * Marks Google reviews that the (complete) fetch no longer returns as removed.
+ * Called only after every page was fetched, since fetchGoogleReviews throws on
+ * any failed page.
+ */
+async function markRemovedReviews(businessId: string, incomingIds: Set<string>) {
+    // An empty answer is far more likely a glitch than every review deleted.
+    if (incomingIds.size === 0) return { removed: 0, guarded: true };
+
+    const live = await prisma.review.findMany({
+        where: { businessId, source: "google", removedAt: null },
+        select: { id: true, externalId: true },
+    });
+    const missing = live.filter((r) => !r.externalId || !incomingIds.has(r.externalId));
+    if (missing.length === 0) return { removed: 0, guarded: false };
+
+    if (missing.length > Math.max(MIN_REMOVED_GUARD, Math.ceil(live.length * MAX_REMOVED_SHARE))) {
+        console.warn(
+            `[sync] ${businessId}: ${missing.length}/${live.length} reviews missing from Google, not marking them removed`
+        );
+        return { removed: 0, guarded: true };
+    }
+
+    const { count } = await prisma.review.updateMany({
+        where: { id: { in: missing.map((r) => r.id) }, removedAt: null },
+        data: { removedAt: new Date() },
+    });
+    return { removed: count, guarded: false };
+}
+
 function toReviewData(r: ExternalReview) {
     return {
         rating: Math.max(1, Math.min(5, Math.round(r.rating))),
@@ -57,12 +92,12 @@ export async function syncReviewsForBusiness(
         // One query for what we already have, instead of an upsert per review
         const existing = await prisma.review.findMany({
             where: { businessId, source, externalId: { in: [...incoming.keys()] } },
-            select: { id: true, externalId: true, rating: true, authorName: true, comment: true, createdAtGoogle: true },
+            select: { id: true, externalId: true, rating: true, authorName: true, comment: true, createdAtGoogle: true, removedAt: true },
         });
         const existingById = new Map(existing.map((e) => [e.externalId, e]));
 
         const toCreate: Prisma.ReviewCreateManyInput[] = [];
-        const toUpdate: { id: string; data: ReturnType<typeof toReviewData> }[] = [];
+        const toUpdate: { id: string; data: ReturnType<typeof toReviewData> & { removedAt?: null } }[] = [];
 
         for (const r of incoming.values()) {
             const data = toReviewData(r);
@@ -71,12 +106,14 @@ export async function syncReviewsForBusiness(
             if (!current) {
                 toCreate.push({ businessId, source, externalId: r.externalId, status: "pending", ...data });
             } else if (
+                current.removedAt !== null ||
                 current.rating !== data.rating ||
                 current.authorName !== data.authorName ||
                 current.comment !== data.comment ||
                 current.createdAtGoogle?.getTime() !== data.createdAtGoogle?.getTime()
             ) {
-                toUpdate.push({ id: current.id, data });
+                // A review Google returns again is no longer removed
+                toUpdate.push({ id: current.id, data: current.removedAt ? { ...data, removedAt: null } : data });
             }
             // Unchanged reviews are not written, so their updatedAt stays meaningful
         }
@@ -93,6 +130,10 @@ export async function syncReviewsForBusiness(
             );
         }
         const updated = toUpdate.length;
+
+        const removal = source === "google"
+            ? await markRemovedReviews(businessId, new Set(incoming.keys()))
+            : { removed: 0, guarded: false };
 
         // ✅ First sync: lock history by setting connectedAt=now
         let connectedAtSet: string | null = null;
@@ -125,6 +166,8 @@ export async function syncReviewsForBusiness(
             firstSync,
             imported,
             updated,
+            removed: removal.removed,
+            removalGuarded: removal.guarded,
             totalFetched: fetched.length,
             connectedAtSet,
         };

@@ -178,6 +178,7 @@ export async function autoRespondBusiness(businessId: string) {
     const where: Prisma.ReviewWhereInput = {
       businessId,
       status: "pending",
+      removedAt: null, // replying to a review Google no longer has would fail
       ...automatedReviewsWhere(biz.connectedAt),
     };
 

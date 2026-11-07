@@ -143,7 +143,7 @@ export default async function AdminBusinessDetailPage({
 
   const [[health], reviewStats, repliedCount, awaitingCount, impersonatedBusinessId] = await Promise.all([
     loadBusinessHealthRows({ where: { id } }),
-    prisma.review.aggregate({ where: { businessId: id }, _count: true, _avg: { rating: true } }),
+    prisma.review.aggregate({ where: { businessId: id, removedAt: null }, _count: true, _avg: { rating: true } }),
     prisma.review.count({ where: { businessId: id, status: "responded" } }),
     prisma.review.count({ where: { AND: [{ businessId: id, status: "pending" }, automatedReviewsWhere(business.connectedAt)] } }),
     getAdminImpersonatedBusinessId(),

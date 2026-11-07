@@ -185,6 +185,7 @@ export async function generateReviewInsight(businessId: string, now = new Date()
     const where: Prisma.ReviewWhereInput = {
       businessId,
       createdAtGoogle: { gte: periodStart, lt: periodEnd },
+      removedAt: null,
     };
 
     const [stats, commented] = await Promise.all([

@@ -10,6 +10,9 @@ import {
 
 type ReviewStatus = "pending" | "responded" | "failed" | "skipped";
 
+// Status filters only cover reviews still on Google; "removed" lists the rest.
+const LIVE: Prisma.ReviewWhereInput = { removedAt: null };
+
 const DEFAULT_TAKE = 50;
 const MAX_TAKE = 100;
 
@@ -52,17 +55,18 @@ function afterCursor(cursor: Cursor): Prisma.ReviewWhereInput {
 
 async function getStatusCounts(businessId: string, connectedAt: Date | null) {
   const beforeWhere = beforeAutomationWhere(connectedAt);
-  const [groups, beforeAutomation] = await Promise.all([
+  const [groups, beforeAutomation, removed] = await Promise.all([
     prisma.review.groupBy({
       by: ["status"],
-      where: { businessId },
+      where: { businessId, ...LIVE },
       _count: { _all: true },
     }),
     beforeWhere
-      ? prisma.review.count({ where: { businessId, status: "pending", ...beforeWhere } })
+      ? prisma.review.count({ where: { businessId, status: "pending", ...LIVE, ...beforeWhere } })
       : Promise.resolve(0),
+    prisma.review.count({ where: { businessId, removedAt: { not: null } } }),
   ]);
-  const counts = { pending: 0, responded: 0, failed: 0, skipped: 0, before_automation: 0, all: 0 };
+  const counts = { pending: 0, responded: 0, failed: 0, skipped: 0, before_automation: 0, removed, all: 0 };
   for (const group of groups) {
     counts[group.status] = group._count._all;
     counts.all += group._count._all;
@@ -84,7 +88,7 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const status = url.searchParams.get("status"); // pending | responded | failed | skipped | before_automation | all
+  const status = url.searchParams.get("status"); // pending | responded | failed | skipped | before_automation | removed | all
   const takeRaw = Number(url.searchParams.get("take") ?? DEFAULT_TAKE);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.floor(takeRaw), 1), MAX_TAKE) : DEFAULT_TAKE;
 
@@ -96,6 +100,11 @@ export async function GET(req: Request) {
 
   const connectedAt = business.connectedAt;
   const filters: Prisma.ReviewWhereInput[] = [{ businessId: business.id }];
+  if (status === "removed") {
+    filters.push({ removedAt: { not: null } });
+  } else {
+    filters.push(LIVE);
+  }
   if (status === "pending") {
     filters.push({ status: "pending" }, automatedReviewsWhere(connectedAt));
   } else if (status === "before_automation") {

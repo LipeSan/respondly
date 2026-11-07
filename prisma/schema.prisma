@@ -160,6 +160,11 @@ model Review {
   status    ReviewStatus @default(pending)
   lastError String?
 
+  // Set when a full Google sync no longer returns this review (deleted by the
+  // author, filtered by Google, ...). Removed reviews are kept for history but
+  // left out of metrics, insights and automation. Cleared if it comes back.
+  removedAt DateTime?
+
   response  ReviewResponse?
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt // ✅ ADD
