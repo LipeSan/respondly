@@ -79,6 +79,7 @@ export default async function AdminBusinessDetailPage({
       timezone: true,
       createdAt: true,
       connectedAt: true,
+      googleLocationId: true,
       user: { select: { id: true, name: true, email: true, role: true, createdAt: true } },
       subscription: {
         select: {
@@ -211,6 +212,7 @@ export default async function AdminBusinessDetailPage({
           <AdminBusinessActions
             businessId={business.id}
             isCurrent={isCurrent}
+            canSync={adminContext.accessLevel === "admin" && Boolean(business.googleLocationId)}
             emailRecipient={
               adminContext.accessLevel === "admin"
                 ? {
