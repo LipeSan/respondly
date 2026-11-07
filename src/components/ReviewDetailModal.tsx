@@ -30,10 +30,14 @@ export type Review = {
   createdAtGoogle?: string | null;
   lastError?: string | null;
   beforeAutomation?: boolean;
+  removedAt?: string | null;
   responses?: ReviewResponse[];
 };
 
 export function getStatusBadge(r: Review) {
+  if (r.removedAt) {
+    return { label: "Removed from Google", classes: "bg-gray-100 text-gray-500 line-through decoration-gray-400" };
+  }
   if (r.beforeAutomation) {
     return { label: "Not automated", classes: "bg-gray-100 text-gray-600" };
   }
@@ -212,6 +216,12 @@ export function ReviewDetailModal({
                 <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
                   {detail.comment || "No comment, rating only."}
                 </p>
+                {detail.removedAt ? (
+                  <p className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                    This review was no longer on Google as of {formatDate(detail.removedAt)}. It stays here for your
+                    records but no longer counts toward your rating or reports.
+                  </p>
+                ) : null}
                 {detail.beforeAutomation && automationStartsAt ? (
                   <p className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm text-gray-600">
                     This review was posted before automatic replies started on {formatDate(automationStartsAt)}, so
@@ -266,7 +276,7 @@ export function ReviewDetailModal({
           )}
         </div>
 
-        {draftResponse ? (
+        {draftResponse && !detail?.removedAt ? (
           <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
             <Button variant="ghost" className="!w-auto px-4 py-2" onClick={onClose}>
               Cancel

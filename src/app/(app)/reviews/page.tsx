@@ -12,7 +12,8 @@ import { formatDate } from "@/lib/date";
 
 // "before_automation" is not a stored status: it's a pending review posted on
 // Google before the business connected, which automation never answers.
-type StatusFilter = ReviewStatus | "before_automation" | "all";
+// "removed" is a review Google no longer returns; it's excluded from every other tab.
+type StatusFilter = ReviewStatus | "before_automation" | "removed" | "all";
 type StatusCounts = Record<StatusFilter, number>;
 
 const PAGE_SIZE = 50;
@@ -22,19 +23,22 @@ const emptyCounts: StatusCounts = {
   failed: 0,
   skipped: 0,
   before_automation: 0,
+  removed: 0,
   all: 0,
 };
-const filterOptions: StatusFilter[] = ["pending", "responded", "failed", "skipped", "before_automation", "all"];
+const filterOptions: StatusFilter[] = ["pending", "responded", "failed", "skipped", "before_automation", "removed", "all"];
 const filterLabels: Record<StatusFilter, string> = {
   pending: "Pending",
   responded: "Responded",
   failed: "Failed",
   skipped: "Skipped",
   before_automation: "Before automation",
+  removed: "Removed",
   all: "All",
 };
 
 function getFilterBucket(r: Review): Exclude<StatusFilter, "all"> {
+  if (r.removedAt) return "removed";
   return r.beforeAutomation ? "before_automation" : r.status;
 }
 
@@ -140,11 +144,17 @@ export default function ReviewsPage() {
         : current.map((r) => (r.id === updated.id ? updated : r))
     );
     if (previousBucket !== updatedBucket) {
-      setCounts((current) => ({
-        ...current,
-        [previousBucket]: Math.max(0, current[previousBucket] - 1),
-        [updatedBucket]: current[updatedBucket] + 1,
-      }));
+      setCounts((current) => {
+        const next = {
+          ...current,
+          [previousBucket]: Math.max(0, current[previousBucket] - 1),
+          [updatedBucket]: current[updatedBucket] + 1,
+        };
+        // "All" only counts reviews still on Google
+        if (previousBucket === "removed") next.all += 1;
+        if (updatedBucket === "removed") next.all = Math.max(0, next.all - 1);
+        return next;
+      });
     }
   }
 
@@ -228,6 +238,13 @@ export default function ReviewsPage() {
           </InlineNotification>
         ) : null}
 
+        {status === "removed" && counts.removed > 0 ? (
+          <InlineNotification tone="info">
+            These reviews are no longer on Google, either deleted by their author or removed by Google. We keep them
+            here for your records, but they don&apos;t count toward your rating, dashboard or reports.
+          </InlineNotification>
+        ) : null}
+
         {error ? (
           <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-red-800">{error}</p>
@@ -246,25 +263,28 @@ export default function ReviewsPage() {
               <p className="mt-1 max-w-xs text-sm text-gray-500">
                 {status === "all"
                   ? "New Google reviews will show up here as soon as they're synced."
-                  : `There are no ${filterLabels[status].toLowerCase()} reviews right now.`}
+                  : status === "removed"
+                    ? "None of your reviews have been removed from Google."
+                    : `There are no ${filterLabels[status].toLowerCase()} reviews right now.`}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
               {items.map((r) => (
-                <ReviewRow
-                  key={r.id}
-                  review={{
-                    rating: r.rating,
-                    authorName: r.authorName,
-                    comment: r.comment,
-                    createdAt: r.createdAtGoogle ?? r.createdAt,
-                    replyText: r.responses?.[0]?.finalText,
-                    lastError: r.lastError,
-                  }}
-                  badge={<StatusBadge review={r} />}
-                  onClick={() => setOpenId(r.id)}
-                />
+                <div key={r.id} className={r.removedAt ? "opacity-60" : undefined}>
+                  <ReviewRow
+                    review={{
+                      rating: r.rating,
+                      authorName: r.authorName,
+                      comment: r.comment,
+                      createdAt: r.createdAtGoogle ?? r.createdAt,
+                      replyText: r.responses?.[0]?.finalText,
+                      lastError: r.lastError,
+                    }}
+                    badge={<StatusBadge review={r} />}
+                    onClick={() => setOpenId(r.id)}
+                  />
+                </div>
               ))}
             </div>
           )}

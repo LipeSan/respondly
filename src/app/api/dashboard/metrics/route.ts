@@ -47,6 +47,8 @@ export async function GET(req: Request) {
   const previousStart = new Date(start.getTime() - rangeDays * DAY_MS);
   const connectedAt = business.connectedAt;
   const automatedWhere = automatedReviewsWhere(connectedAt);
+  // Reviews no longer on Google are kept for history but never counted here.
+  const live = { businessId: business.id, removedAt: null };
 
   const [
     google,
@@ -61,6 +63,7 @@ export async function GET(req: Request) {
     lowRating,
     failedCount,
     recentReviews,
+    removedCount,
   ] = await Promise.all([
     prisma.googleConnection.findUnique({ where: { businessId: business.id }, select: { id: true } }),
     getAutoResponderGate(business.id),
@@ -72,7 +75,7 @@ export async function GET(req: Request) {
     // Current + previous period, bucketed in memory (a local business has few reviews per period).
     prisma.review.findMany({
       where: {
-        businessId: business.id,
+        ...live,
         OR: [
           { createdAtGoogle: { gte: previousStart } },
           { createdAtGoogle: null, createdAt: { gte: previousStart } },
@@ -86,31 +89,31 @@ export async function GET(req: Request) {
     }),
     prisma.review.groupBy({
       by: ["rating"],
-      where: { businessId: business.id },
+      where: live,
       _count: { _all: true },
     }),
     prisma.review.count({
-      where: { businessId: business.id, status: "pending", response: { is: { sentAt: null } } },
+      where: { ...live, status: "pending", response: { is: { sentAt: null } } },
     }),
     prisma.review.findMany({
-      where: { businessId: business.id, status: "pending", response: { is: { sentAt: null } } },
+      where: { ...live, status: "pending", response: { is: { sentAt: null } } },
       orderBy: [{ createdAtGoogle: { sort: "desc", nulls: "last" } }, { id: "desc" }],
       take: LIST_LIMIT,
       select: { id: true, rating: true, authorName: true, comment: true, createdAt: true, createdAtGoogle: true },
     }),
     // Only reviews automation is responsible for; older ones are shown on the Reviews page.
     prisma.review.count({
-      where: { AND: [{ businessId: business.id, status: { in: ["pending", "failed"] }, rating: { lte: 2 } }, automatedWhere] },
+      where: { AND: [{ ...live, status: { in: ["pending", "failed"] }, rating: { lte: 2 } }, automatedWhere] },
     }),
     prisma.review.findMany({
-      where: { AND: [{ businessId: business.id, status: { in: ["pending", "failed"] }, rating: { lte: 2 } }, automatedWhere] },
+      where: { AND: [{ ...live, status: { in: ["pending", "failed"] }, rating: { lte: 2 } }, automatedWhere] },
       orderBy: [{ createdAtGoogle: { sort: "desc", nulls: "last" } }, { id: "desc" }],
       take: LIST_LIMIT,
       select: { id: true, rating: true, authorName: true, comment: true, status: true, createdAt: true, createdAtGoogle: true },
     }),
-    prisma.review.count({ where: { businessId: business.id, status: "failed" } }),
+    prisma.review.count({ where: { ...live, status: "failed" } }),
     prisma.review.findMany({
-      where: { businessId: business.id },
+      where: live,
       orderBy: [{ createdAtGoogle: { sort: "desc", nulls: "last" } }, { id: "desc" }],
       take: LIST_LIMIT,
       select: {
@@ -125,6 +128,7 @@ export async function GET(req: Request) {
         response: { select: { finalText: true } },
       },
     }),
+    prisma.review.count({ where: { businessId: business.id, removedAt: { not: null } } }),
   ]);
 
   const inCurrent = (d: Date) => d >= start;
@@ -210,6 +214,7 @@ export async function GET(req: Request) {
       distribution: ratingDistribution,
       total: ratingTotal,
       average: ratingTotal > 0 ? ratingSum / ratingTotal : null,
+      removed: removedCount,
     },
     attention: {
       draftsCount,
