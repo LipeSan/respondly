@@ -108,6 +108,7 @@ export function formatAuditAction(action: string) {
     shop_order_shipped: "Marked Shop order shipped",
     shop_order_unshipped: "Undid Shop order shipped",
     insight_report_emailed: "Emailed insights report",
+    reviews_synced: "Synced reviews from Google",
   };
   return labels[action] ?? action.replaceAll("_", " ");
 }

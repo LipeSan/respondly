@@ -18,10 +18,13 @@ export function AdminBusinessActions({
   businessId,
   isCurrent,
   emailRecipient,
+  canSync,
 }: {
   businessId: string;
   isCurrent: boolean;
   emailRecipient: AdminEmailRecipient | null;
+  /** Full admins only, and only when the business has a Google location. */
+  canSync: boolean;
 }) {
   const router = useRouter();
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
@@ -51,6 +54,34 @@ export function AdminBusinessActions({
     }
   }
 
+  async function syncReviews() {
+    setLoadingKey("sync");
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/admin/businesses/${businessId}/sync`, { method: "POST" });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Sync failed");
+      const parts = [
+        `${payload.totalFetched ?? 0} fetched from Google`,
+        `${payload.imported ?? 0} new`,
+        `${payload.updated ?? 0} updated`,
+        `${payload.removed ?? 0} removed`,
+      ];
+      setNotice(
+        `Sync finished: ${parts.join(", ")}.` +
+          (payload.removalGuarded
+            ? " Removal check was skipped because too many reviews were missing from Google's answer."
+            : "")
+      );
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unexpected error");
+    } finally {
+      setLoadingKey(null);
+    }
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -62,6 +93,18 @@ export function AdminBusinessActions({
         >
           {isCurrent ? "Return to their dashboard" : "Open as customer"}
         </Button>
+        {canSync ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="!w-auto !py-2 px-4"
+            isLoading={loadingKey === "sync"}
+            disabled={loadingKey !== null}
+            onClick={syncReviews}
+          >
+            {loadingKey === "sync" ? "Syncing..." : "Sync reviews now"}
+          </Button>
+        ) : null}
         {emailRecipient ? (
           <Button
             type="button"
