@@ -21,14 +21,31 @@ function average(values: number[]) {
   return values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
 }
 
-/** Rolling buckets ending now: daily for 7 days, weekly otherwise (local businesses get few reviews per day). */
-function buildBuckets(start: Date, end: Date, rangeDays: number) {
-  const sizeMs = (rangeDays <= 7 ? 1 : 7) * DAY_MS;
-  const buckets: Array<{ start: Date; end: Date }> = [];
-  for (let bucketEnd = end.getTime(); bucketEnd > start.getTime(); bucketEnd -= sizeMs) {
-    buckets.unshift({ start: new Date(Math.max(bucketEnd - sizeMs, start.getTime())), end: new Date(bucketEnd) });
+/** Calendar day ("YYYY-MM-DD") of an instant in the business's timezone. */
+function dayKey(d: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+function shiftDayKey(key: string, days: number) {
+  const d = new Date(`${key}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Calendar-day buckets in the business's timezone, ending today: daily for 7 days, weekly
+ * otherwise (local businesses get few reviews per day). Weeks are counted back from today,
+ * so the oldest one may be shorter. Each bucket carries its first and last day.
+ */
+function buildBuckets(now: Date, rangeDays: number, timeZone: string) {
+  const size = rangeDays <= 7 ? 1 : 7;
+  const today = dayKey(now, timeZone);
+  const buckets: Array<{ from: string; to: string }> = [];
+  for (let endOffset = 0; endOffset < rangeDays; endOffset += size) {
+    const startOffset = Math.min(endOffset + size - 1, rangeDays - 1);
+    buckets.unshift({ from: shiftDayKey(today, -startOffset), to: shiftDayKey(today, -endOffset) });
   }
-  return { buckets, bucket: rangeDays <= 7 ? ("day" as const) : ("week" as const) };
+  return { buckets, bucket: size === 1 ? ("day" as const) : ("week" as const) };
 }
 
 export async function GET(req: Request) {
@@ -144,14 +161,14 @@ export async function GET(req: Request) {
   const currentSent = sentResponses.filter((r) => inCurrent(r.sentAt!));
   const previousSent = sentResponses.filter((r) => !inCurrent(r.sentAt!));
 
-  const { buckets, bucket } = buildBuckets(start, now, rangeDays);
+  // Bucket by the day the review was left, as the business sees it (not UTC, not rolling 24h).
+  const timeZone = business.timezone || "Australia/Sydney";
+  const { buckets, bucket } = buildBuckets(now, rangeDays, timeZone);
+  const reviewDays = rangeReviews.map((r) => ({ day: dayKey(reviewDate(r), timeZone), status: r.status }));
   const series = buckets.map((b) => {
-    const rows = current.filter((r) => {
-      const d = reviewDate(r);
-      return d >= b.start && d < b.end;
-    });
+    const rows = reviewDays.filter((r) => r.day >= b.from && r.day <= b.to);
     const replied = rows.filter((r) => r.status === "responded").length;
-    return { start: b.start.toISOString(), replied, notReplied: rows.length - replied };
+    return { from: b.from, to: b.to, replied, notReplied: rows.length - replied };
   });
 
   const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<1 | 2 | 3 | 4 | 5, number>;
