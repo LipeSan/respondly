@@ -99,7 +99,8 @@ function getAutomationStatus(metrics: DashboardMetrics) {
       tone: "error" as const,
       title: "Google isn't connected",
       detail: "Connect your Google Business Profile so Respondly can sync and reply to reviews.",
-      action: { label: "Connect Google", href: "/google" },
+      // Same flow as the Configuration page: full navigation to the OAuth start route.
+      action: { label: "Connect Google", href: "/api/google/connect", fullReload: true },
     };
   }
   if (!automation.locationSelected) {
@@ -152,6 +153,9 @@ const statusToneClasses = {
   error: { box: "border-red-200 bg-red-50", dot: "bg-red-500", title: "text-red-900", detail: "text-red-800" },
 };
 
+const statusActionClass =
+  "inline-flex shrink-0 items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-700";
+
 function AutomationStatusBanner({ metrics }: { metrics: DashboardMetrics }) {
   const status = getAutomationStatus(metrics);
   const tone = statusToneClasses[status.tone];
@@ -170,12 +174,16 @@ function AutomationStatusBanner({ metrics }: { metrics: DashboardMetrics }) {
         </div>
       </div>
       {status.action ? (
-        <Link
-          href={status.action.href}
-          className="inline-flex shrink-0 items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-700"
-        >
-          {status.action.label}
-        </Link>
+        "fullReload" in status.action && status.action.fullReload ? (
+          // API route that redirects to Google OAuth — must be a real navigation, not client-side routing.
+          <a href={status.action.href} className={statusActionClass}>
+            {status.action.label}
+          </a>
+        ) : (
+          <Link href={status.action.href} className={statusActionClass}>
+            {status.action.label}
+          </Link>
+        )
       ) : null}
     </div>
   );
