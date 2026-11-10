@@ -43,7 +43,7 @@ type DashboardMetrics = {
     repliesSent: Comparison;
     avgResponseMinutes: Comparison;
   };
-  series: Array<{ start: string; replied: number; notReplied: number }>;
+  series: Array<{ from: string; to: string; replied: number; notReplied: number }>; // days as YYYY-MM-DD
   bucket: "day" | "week";
   ratings: {
     distribution: Record<"1" | "2" | "3" | "4" | "5", number>;
@@ -86,8 +86,11 @@ function formatRelative(iso: string) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function formatShortDate(iso: string) {
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(iso));
+const dayKeyFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** Formats a server-computed calendar day ("YYYY-MM-DD") without shifting it into the viewer's timezone. */
+function formatDayKey(key: string) {
+  return dayKeyFormatter.format(new Date(`${key}T00:00:00Z`));
 }
 
 // ---- Automation status -----------------------------------------------------
@@ -314,9 +317,13 @@ function KpiCard({
 
 // ---- Charts ----------------------------------------------------------------
 
-function ReviewsChart({ series, bucket }: { series: DashboardMetrics["series"]; bucket: DashboardMetrics["bucket"] }) {
+function ReviewsChart({ series }: { series: DashboardMetrics["series"] }) {
   const hasData = series.some((s) => s.replied + s.notReplied > 0);
-  const data = series.map((s) => ({ ...s, label: formatShortDate(s.start) }));
+  const data = series.map((s) => ({
+    ...s,
+    label: formatDayKey(s.from),
+    rangeLabel: s.from === s.to ? formatDayKey(s.from) : `${formatDayKey(s.from)} – ${formatDayKey(s.to)}`,
+  }));
 
   return (
     <div className="mt-5">
@@ -329,12 +336,13 @@ function ReviewsChart({ series, bucket }: { series: DashboardMetrics["series"]; 
               <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
               <Tooltip
                 cursor={{ fill: "#F9FAFB" }}
-                content={({ active, payload, label }) => {
+                content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
+                  const rangeLabel = (payload[0].payload as { rangeLabel: string }).rangeLabel;
                   return (
                     <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-lg">
                       <p className="font-semibold text-gray-900">
-                        {bucket === "week" ? `Week of ${label}` : label}
+                        {rangeLabel}
                       </p>
                       {payload.map((p) => (
                         <p key={String(p.dataKey)} className="mt-1 flex items-center justify-between gap-6 text-gray-600">
@@ -597,7 +605,7 @@ export default function DashboardPage() {
                   title="New reviews"
                   subtitle={`${metrics.bucket === "week" ? "Per week" : "Per day"}, last ${metrics.rangeDays} days`}
                 />
-                <ReviewsChart series={metrics.series} bucket={metrics.bucket} />
+                <ReviewsChart series={metrics.series} />
               </Card>
               <Card>
                 <CardHeader title="Rating breakdown" subtitle="All time" />

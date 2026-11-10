@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 import { googleGetForBusiness } from "@/lib/googleClient";
+import { createHash } from "crypto";
+import { prisma } from "@/lib/db";
 import { getCache, setCache } from "@/lib/simpleCache";
 
 type GoogleAccount = { name: string; accountName?: string; type?: string };
@@ -18,14 +20,25 @@ export async function GET() {
     );
   }
 
+  // Key the cache by the current Google connection, not just the business. Reconnecting
+  // (possibly with a different Google account) issues a new refresh token, so a stale list
+  // from the previous account is never served — on any server instance.
+  const conn = await prisma.googleConnection.findUnique({
+    where: { businessId: business.id },
+    select: { refreshToken: true },
+  });
+  const connKey = conn
+    ? createHash("sha256").update(conn.refreshToken).digest("hex").slice(0, 16)
+    : "none";
+
   try {
     // ✅ cache 10 minutes (aggressive to avoid hitting quota)
-    const cacheKey = `google:accounts:${business.id}`;
+    const cacheKey = `google:accounts:${business.id}:${connKey}`;
     const cached = getCache<GoogleAccount[]>(cacheKey);
     if (cached) return NextResponse.json({ accounts: cached, cached: true });
 
     // Check for cached error (Circuit Breaker)
-    const errorCacheKey = `google:accounts:error:${business.id}`;
+    const errorCacheKey = `google:accounts:error:${business.id}:${connKey}`;
     const cachedError = getCache<string>(errorCacheKey);
     if (cachedError) {
       console.log("Circuit breaker active, returning cached error");
@@ -49,10 +62,7 @@ export async function GET() {
     const lower = message.toLowerCase();
     const isQuotaError = lower.includes("quota");
     if (isQuotaError) {
-       const { business } = await getCurrentUserAndBusiness();
-       if (business) {
-         setCache(`google:accounts:error:${business.id}`, "Google API Quota exceeded. Please try again in a few minutes.", 2 * 60 * 1000);
-       }
+       setCache(`google:accounts:error:${business.id}:${connKey}`, "Google API Quota exceeded. Please try again in a few minutes.", 2 * 60 * 1000);
        return NextResponse.json({ error: "Google API Quota exceeded. Please try again later." }, { status: 429 });
     }
 
