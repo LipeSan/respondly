@@ -5,7 +5,7 @@ import { isJobRunningRecently } from "@/lib/jobLock";
 import { generateReviewInsight, isInsightDue } from "@/lib/insights/generate";
 
 /**
- * Generates the first report (last 3 months) as soon as a business is both
+ * Generates the first report (last 3 full calendar months) as soon as a business is both
  * paying and synced, instead of waiting for the daily cron. Called from both
  * ends because they can happen in either order: checkout completed, and the
  * first review sync. Runs after the response is sent, so neither the Stripe

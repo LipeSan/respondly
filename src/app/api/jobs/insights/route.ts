@@ -51,7 +51,7 @@ async function handle(req: Request) {
   // ?businessId= forces a run for one business (still plan-gated), e.g. for testing.
   const onlyBusinessId = url.searchParams.get("businessId");
   // ?asOf=YYYY-MM-DD backfills as if the run happened that day: the report
-  // covers the period before it: the 3 months before it for a first report (e.g. 2026-10-01 -> Jul 1 to Sep 30), otherwise from the previous report.
+  // covers the full calendar months before it: 3 for a first report (e.g. 2026-10-14 -> Jul 1 to Sep 30), otherwise just the previous month.
   // Businesses that already have a report on or after that date are skipped.
   const asOfParam = url.searchParams.get("asOf");
   const asOf = asOfParam ? new Date(`${asOfParam}T00:00:00.000Z`) : undefined;

@@ -2,10 +2,9 @@ import { prisma } from "@/lib/db";
 import { startJob, finishJobSuccess, finishJobFailed } from "@/lib/jobs";
 import { getBusinessPlan } from "@/lib/plan";
 import { JobType, Prisma } from "@prisma/client";
-import { isReportDue, startOfUtcDay } from "@/lib/insights/schedule";
+import { DEFAULT_TIMEZONE, isReportDue, localDay, startOfUtcMonth, zonedDayStart } from "@/lib/insights/schedule";
 import {
   FIRST_INSIGHT_WINDOW_MONTHS,
-  MAX_MONTHLY_WINDOW_DAYS,
   MIN_COMMENTS_FOR_INSIGHT,
   canUseInsights,
   modelInsightResultSchema,
@@ -18,12 +17,6 @@ const MAX_REVIEWS_IN_PROMPT = 300;
 const MAX_COMMENT_CHARS = 600;
 const MIN_STRENGTH_RATING = 4;
 const MAX_SINGLE_COMPLAINT_RATING = 3;
-
-function subtractMonths(d: Date, months: number) {
-  const r = new Date(d);
-  r.setUTCMonth(r.getUTCMonth() - months);
-  return r;
-}
 
 const SYSTEM_PROMPT = `You analyze customer reviews for a local business and report what is working and what could improve.
 
@@ -141,31 +134,40 @@ export async function callInsightModel(args: { reviews: InsightReview[] }) {
   return { model, strengths, improvements };
 }
 
+async function getTimezone(businessId: string) {
+  const business = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } });
+  return business?.timezone || DEFAULT_TIMEZONE;
+}
+
 export async function isInsightDue(businessId: string, now = new Date()) {
-  const latest = await prisma.reviewInsight.findFirst({
-    where: { businessId, status: { in: ["ready", "insufficient_data"] } },
-    orderBy: { periodEnd: "desc" },
-    select: { periodEnd: true },
-  });
-  return isReportDue(latest?.periodEnd ?? null, now);
+  const [latest, timeZone] = await Promise.all([
+    prisma.reviewInsight.findFirst({
+      where: { businessId, status: { in: ["ready", "insufficient_data"] } },
+      orderBy: { periodEnd: "desc" },
+      select: { periodEnd: true },
+    }),
+    getTimezone(businessId),
+  ]);
+  return isReportDue(latest?.periodEnd ?? null, now, timeZone);
 }
 
 /**
- * The first report covers the last FIRST_INSIGHT_WINDOW_MONTHS months. Each
- * one after it starts where the previous report ended, so every review is
- * counted in exactly one monthly report, capped at MAX_MONTHLY_WINDOW_DAYS.
- * A report regenerated for the same day keeps its own start.
+ * Every report ends at the start of the current month in the business's
+ * timezone. The first one
+ * covers the FIRST_INSIGHT_WINDOW_MONTHS full months before that (run on
+ * 11 Nov -> 1 Aug to 31 Oct), whenever the business signed up; each one
+ * after it covers only the month that just ended (run on 1 Dec -> 1 Nov to
+ * 30 Nov). Re-running in the same month regenerates the same report.
  */
-async function getPeriodStart(businessId: string, periodEnd: Date) {
+async function getPeriod(businessId: string, now: Date, timeZone: string) {
+  const today = localDay(now, timeZone);
+  const periodEnd = startOfUtcMonth(today);
   const previous = await prisma.reviewInsight.findFirst({
     where: { businessId, status: { in: ["ready", "insufficient_data"] }, periodEnd: { lt: periodEnd } },
-    orderBy: { periodEnd: "desc" },
-    select: { periodEnd: true },
+    select: { id: true },
   });
-  if (!previous) return subtractMonths(periodEnd, FIRST_INSIGHT_WINDOW_MONTHS);
-
-  const earliest = new Date(periodEnd.getTime() - MAX_MONTHLY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-  return previous.periodEnd > earliest ? previous.periodEnd : earliest;
+  const months = previous ? 1 : FIRST_INSIGHT_WINDOW_MONTHS;
+  return { periodStart: startOfUtcMonth(today, months), periodEnd };
 }
 
 /**
@@ -176,15 +178,17 @@ export async function generateReviewInsight(businessId: string, now = new Date()
   const plan = await getBusinessPlan(businessId);
   if (!canUseInsights(plan.plan)) return { skipped: true as const, reason: "plan_not_eligible" };
 
-  const periodEnd = startOfUtcDay(now);
-  const periodStart = await getPeriodStart(businessId, periodEnd);
+  const timeZone = await getTimezone(businessId);
+  const { periodStart, periodEnd } = await getPeriod(businessId, now, timeZone);
 
   const job = await startJob(businessId, JobType.review_insights);
 
   try {
     const where: Prisma.ReviewWhereInput = {
       businessId,
-      createdAtGoogle: { gte: periodStart, lt: periodEnd },
+      // Midnight in the business's timezone, so a review left on the 1st at
+      // 9am in Sydney counts in that month, not the one before.
+      createdAtGoogle: { gte: zonedDayStart(periodStart, timeZone), lt: zonedDayStart(periodEnd, timeZone) },
       removedAt: null,
     };
 

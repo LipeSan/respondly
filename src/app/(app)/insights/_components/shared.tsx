@@ -18,7 +18,7 @@ export function addDays(d: Date, days: number) {
   return new Date(d.getTime() + days * 86_400_000);
 }
 
-// periodEnd is exclusive (start of the run's UTC day), so show the day before.
+// periodEnd is exclusive (the 1st after the period), so show the day before.
 export function formatPeriod(periodStart: Date, periodEnd: Date) {
   return `${periodFormatter.format(periodStart)} – ${periodFormatter.format(addDays(periodEnd, -1))}`;
 }
