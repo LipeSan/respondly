@@ -3,13 +3,10 @@ import { z } from "zod";
 // Minimum written reviews in the window before we generate an insight;
 // below this the report is stored as `insufficient_data`.
 export const MIN_COMMENTS_FOR_INSIGHT = 5;
-// The first report covers this many months; each monthly report after it
-// starts where the previous one ended.
+// The first report covers this many full calendar months; each report after
+// it covers one calendar month.
 export const FIRST_INSIGHT_WINDOW_MONTHS = 3;
-// After a long gap (e.g. a lapsed subscription) a monthly report still only
-// looks back this far.
-export const MAX_MONTHLY_WINDOW_DAYS = 31;
-// When a new insight is due lives in ./schedule.ts (last day of each month).
+// When a new insight is due lives in ./schedule.ts (the 1st of each month).
 
 export const insightItemSchema = z.object({
   // Stable snake_case key (e.g. "wait_time") reused across months so the
