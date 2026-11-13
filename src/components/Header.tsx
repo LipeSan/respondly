@@ -109,8 +109,8 @@ export function Header({ businessName, userName, userEmail, isAdmin = false }: H
     : [
         { name: "Dashboard", href: "/dashboard" },
         { name: "Reviews", href: "/reviews" },
-        // Insights is hidden from the customer menu until launch; the URL still works.
-        ...(isAdmin ? [{ name: "Insights", href: "/insights" }] : []),
+        // Free plans see Insights too; the page shows them the upgrade prompt.
+        { name: "Insights", href: "/insights" },
         { name: "Rules", href: "/rules" },
         { name: "Templates", href: "/templates" },
         { name: "Shop", href: "/shop" },
