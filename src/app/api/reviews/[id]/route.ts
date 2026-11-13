@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 import { replyToGoogleReview } from "@/lib/reviews/providers/google";
 import { isBeforeAutomation } from "@/lib/reviews/automationWindow";
 
@@ -41,7 +42,8 @@ export async function POST(
   props: { params: Promise<{ id: string }> }
 ) {
   const params = await props.params;
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -98,6 +100,9 @@ export async function POST(
         data: { status: "responded", lastError: null },
       }),
     ]);
+    await recordCustomerActivity(ctx, "review_reply_published", {
+      detail: `${review.rating}★ review${review.authorName ? ` by ${review.authorName}` : ""}`,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {

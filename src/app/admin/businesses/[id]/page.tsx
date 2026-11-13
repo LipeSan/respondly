@@ -6,7 +6,7 @@ import { loadBusinessHealthRows } from "@/lib/adminData";
 import { formatAdminDate, formatAdminDateTime } from "@/lib/date";
 import { getOnboardingStage } from "@/lib/email/adminEmailPresets";
 import { automatedReviewsWhere, isBeforeAutomation } from "@/lib/reviews/automationWindow";
-import { Badge, Card, CardHeader, HealthDot, formatAuditAction, formatRelative, planBadge } from "../../ui";
+import { Badge, Card, CardHeader, HealthDot, formatAuditAction, formatAuditDetails, formatRelative, planBadge } from "../../ui";
 import { AdminBusinessActions } from "./AdminBusinessActions";
 import { AdminOwnerRole } from "./AdminOwnerRole";
 
@@ -497,13 +497,13 @@ export default async function AdminBusinessDetailPage({
           </Card>
 
           <Card>
-            <CardHeader title="Activity" subtitle="Admin actions, emails and auto-reply switches." />
+            <CardHeader title="Activity" subtitle="Customer sign-ins and changes, plus admin actions." />
             <ul className="mt-3 divide-y divide-gray-100">
               {business.adminAuditLogs.length === 0 ? (
                 <li className="py-4 text-sm text-gray-500">No activity yet.</li>
               ) : (
                 business.adminAuditLogs.map((log) => {
-                  const meta = (log.metadata ?? {}) as Record<string, unknown>;
+                  const details = formatAuditDetails(log.metadata);
                   return (
                     <li key={log.id} className="py-2.5 text-sm">
                       <div className="flex items-start justify-between gap-3">
@@ -514,7 +514,7 @@ export default async function AdminBusinessDetailPage({
                       </div>
                       <p className="text-xs text-gray-500">
                         by {log.actorUser.name || log.actorUser.email}
-                        {typeof meta.subject === "string" ? ` · “${meta.subject}”` : ""}
+                        {details ? ` · ${details}` : ""}
                       </p>
                     </li>
                   );

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 import { syncReviewsForBusiness } from "@/lib/reviews/sync";
 
 const API_VERSION = 1;
@@ -17,7 +18,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { apiVersion: API_VERSION, error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -48,6 +50,8 @@ export async function POST(req: Request) {
       googleLocationName: true,
     },
   });
+
+  await recordCustomerActivity(ctx, "google_location_selected", { detail: locationTitle ?? locationName });
 
   try {
     const sync = await syncReviewsForBusiness(business.id, { source: "google" });

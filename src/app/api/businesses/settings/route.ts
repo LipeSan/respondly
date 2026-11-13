@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 import { Prisma } from "@prisma/client";
 import { canUseAI, getBusinessPlan } from "@/lib/plan";
-import { recordAdminAudit } from "@/lib/admin";
+import { recordCustomerActivity } from "@/lib/activity";
 
 export async function GET() {
   const { business } = await getCurrentUserAndBusiness();
@@ -78,14 +78,15 @@ export async function PUT(req: Request) {
 
   // Auto-replies are the paid feature; log every on/off switch so a business
   // that silently isn't being automated can be traced back to who changed it.
-  if (user && updated.autoResponderEnabled !== business.autoResponderEnabled) {
-    await recordAdminAudit({
-      actorUserId: user.id,
-      action: updated.autoResponderEnabled ? "auto_responder_enabled" : "auto_responder_disabled",
-      targetUserId: business.userId,
-      targetBusinessId: business.id,
-      metadata: { viaImpersonation: isImpersonating },
-    });
+  const activityCtx = { user, business, isImpersonating };
+  if (updated.autoResponderEnabled !== business.autoResponderEnabled) {
+    await recordCustomerActivity(
+      activityCtx,
+      updated.autoResponderEnabled ? "auto_responder_enabled" : "auto_responder_disabled",
+    );
+  }
+  if ("aiSettings" in data) {
+    await recordCustomerActivity(activityCtx, "ai_settings_updated");
   }
 
   return NextResponse.json(updated);

@@ -109,6 +109,38 @@ export function formatAuditAction(action: string) {
     shop_order_unshipped: "Undid Shop order shipped",
     insight_report_emailed: "Emailed insights report",
     reviews_synced: "Synced reviews from Google",
+    // Customer actions (src/lib/activity.ts)
+    user_signed_in: "Signed in",
+    user_registered: "Created an account",
+    password_reset: "Reset password",
+    business_created: "Created business",
+    ai_settings_updated: "Changed AI settings",
+    google_connected: "Connected Google",
+    google_disconnected: "Disconnected Google",
+    google_location_selected: "Selected Google location",
+    reviews_sync_requested: "Synced reviews",
+    review_reply_published: "Published a reply",
+    rule_created: "Created a rule",
+    rule_updated: "Edited a rule",
+    rule_deleted: "Deleted a rule",
+    template_created: "Created a template",
+    template_updated: "Edited a template",
+    template_deleted: "Deleted a template",
+    checkout_started: "Started plan checkout",
+    subscription_cancel_requested: "Canceled subscription",
+    shop_order_started: "Started a Shop order",
+    shop_order_canceled: "Canceled a Shop order",
   };
   return labels[action] ?? action.replaceAll("_", " ");
+}
+
+/** One-line summary of an audit entry's metadata, or "" when there's nothing to add. */
+export function formatAuditDetails(metadata: unknown) {
+  const meta = (metadata ?? {}) as Record<string, unknown>;
+  const parts: string[] = [];
+  if (typeof meta.subject === "string") parts.push(`“${meta.subject}”`);
+  if (typeof meta.nextRole === "string") parts.push(`${String(meta.previousRole)} → ${meta.nextRole}`);
+  if (typeof meta.detail === "string" && meta.detail) parts.push(meta.detail);
+  if (meta.viaImpersonation === true) parts.push("While viewing as customer");
+  return parts.join(" · ");
 }

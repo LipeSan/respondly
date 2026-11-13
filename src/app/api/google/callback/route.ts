@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { exchangeCodeForTokens, parseState } from "@/lib/googleOauth";
+import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -43,6 +45,11 @@ export async function GET(req: Request) {
       refreshToken: tokens.refresh_token ? tokens.refresh_token : (existing?.refreshToken ?? ""),
     },
   });
+
+  const ctx = await getCurrentUserAndBusiness();
+  if (ctx.business?.id === parsed.businessId) {
+    await recordCustomerActivity(ctx, "google_connected");
+  }
 
   return NextResponse.redirect(new URL(`/dashboard?google=connected`, url.origin));
 }

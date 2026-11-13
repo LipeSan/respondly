@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 import { COLOR_LABELS, getProduct, isProductColor, shippingFor, toCents } from "@/lib/shop";
 import type { ShopOrderItem } from "@/lib/shopOrders";
 
@@ -105,6 +106,10 @@ export async function POST(req: Request) {
     await prisma.shopOrder.update({
       where: { id: order.id },
       data: { stripeSessionId: session.id },
+    });
+
+    await recordCustomerActivity(ctx, "shop_order_started", {
+      detail: `${items.reduce((n, i) => n + i.quantity, 0)} item(s) · ${((subtotal + shipping) / 100).toFixed(2)} AUD`,
     });
 
     console.log("[shop:checkout] Created checkout session", {

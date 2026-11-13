@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 
 export async function GET() {
   const { business } = await getCurrentUserAndBusiness();
@@ -20,7 +21,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -39,12 +41,14 @@ export async function POST(req: Request) {
   const template = await prisma.reviewTemplate.create({
     data: { businessId: business.id, name, body: bodyText },
   });
+  await recordCustomerActivity(ctx, "template_created", { detail: name });
 
   return NextResponse.json({ template }, { status: 201 });
 }
 
 export async function PUT(req: Request) {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -69,12 +73,14 @@ export async function PUT(req: Request) {
   if (template.count === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  await recordCustomerActivity(ctx, "template_updated", { detail: name });
 
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: Request) {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -99,6 +105,11 @@ export async function DELETE(req: Request) {
     );
   }
 
+  const existing = await prisma.reviewTemplate.findFirst({
+    where: { id, businessId: business.id },
+    select: { name: true },
+  });
+
   const deleted = await prisma.reviewTemplate.deleteMany({
     where: { id, businessId: business.id },
   });
@@ -106,6 +117,7 @@ export async function DELETE(req: Request) {
   if (deleted.count === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  await recordCustomerActivity(ctx, "template_deleted", { detail: existing?.name ?? "" });
 
   return NextResponse.json({ ok: true });
 }

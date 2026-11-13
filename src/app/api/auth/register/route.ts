@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcrypt";
 import { sendEmail } from "@/lib/email/sendEmail";
 import { buildWelcomeEmail } from "@/lib/email/templates";
+import { recordCustomerActivity } from "@/lib/activity";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
     data: { email, password: passwordHash, name },
     select: { id: true, email: true, name: true },
   });
+  await recordCustomerActivity({ user }, "user_registered");
 
   try {
     const origin = process.env.APP_URL ?? new URL(req.url).origin;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,10 @@ export async function POST() {
     ]);
 
     console.log("[google:disconnect] Disconnected Google for business", { businessId: business.id });
+    // Disconnecting also turns auto-replies off; say so in the log.
+    await recordCustomerActivity(ctx, "google_disconnected", {
+      detail: business.autoResponderEnabled ? "Auto-replies turned off" : "",
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to disconnect Google";
