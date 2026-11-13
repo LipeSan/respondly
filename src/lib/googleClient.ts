@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { decryptToken, encryptToken } from "@/lib/tokenCrypto";
 
 async function refreshAccessToken(args: {
   refreshToken: string;
@@ -61,7 +62,7 @@ export async function getGoogleAccessToken(businessId: string) {
 
     try {
       const refreshed = await refreshAccessToken({
-        refreshToken: conn.refreshToken,
+        refreshToken: decryptToken(conn.refreshToken),
         clientId,
         clientSecret,
       });
@@ -70,7 +71,7 @@ export async function getGoogleAccessToken(businessId: string) {
 
       await prisma.googleConnection.update({
         where: { businessId },
-        data: { accessToken: refreshed.access_token, expiresAt: newExpiresAt },
+        data: { accessToken: encryptToken(refreshed.access_token), expiresAt: newExpiresAt },
       });
 
       return refreshed.access_token;
@@ -91,7 +92,7 @@ export async function getGoogleAccessToken(businessId: string) {
     }
   }
 
-  return conn.accessToken;
+  return decryptToken(conn.accessToken);
 }
 
 export async function googleGet<T>(accessToken: string, url: string, retries = 0): Promise<T> {
