@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,6 +80,10 @@ export async function POST() {
         currentPeriodEnd: currentPeriodEnd ?? undefined,
         stripeSubscriptionId,
       },
+    });
+
+    await recordCustomerActivity(ctx, "subscription_cancel_requested", {
+      detail: cancelAt ? `Ends ${cancelAt.toISOString().slice(0, 10)}` : "",
     });
 
     console.log("[billing:cancel] Subscription marked to cancel at period end", {

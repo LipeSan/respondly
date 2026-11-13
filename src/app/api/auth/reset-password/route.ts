@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/db";
+import { recordCustomerActivity } from "@/lib/activity";
 
 function sha256Hex(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex");
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       data: { usedAt: now },
     }),
   ]);
+  await recordCustomerActivity({ user: { id: reset.userId } }, "password_reset");
 
   return NextResponse.json({ ok: true });
   } catch (err) {

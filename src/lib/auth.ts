@@ -2,6 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./db";
 import bcrypt from "bcrypt";
+import { recordCustomerActivity } from "./activity";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -30,5 +31,14 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: {
     signIn: "/login",
+  },
+  events: {
+    async signIn({ user }) {
+      if (!user?.id) return;
+      const business = await prisma.business
+        .findFirst({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, select: { id: true, userId: true } })
+        .catch(() => null);
+      await recordCustomerActivity({ user: { id: user.id }, business }, "user_signed_in");
+    },
   },
 };

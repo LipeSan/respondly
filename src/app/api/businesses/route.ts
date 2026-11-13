@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { recordCustomerActivity } from "@/lib/activity";
 import { getAdminAccessLevelForUser, getAdminImpersonatedBusinessId } from "@/lib/admin";
 
 export async function GET() {
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
   const business = await prisma.business.create({
     data: { userId: user.id, name, phone: phone ?? undefined, email: email ?? undefined },
   });
+  await recordCustomerActivity({ user, business }, "business_created", { detail: business.name });
 
   return NextResponse.json({ business }, { status: 201 });
 }

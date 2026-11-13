@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -442,6 +443,10 @@ export async function POST(req: Request) {
         plan,
         ...(appliedInviteCode ? { inviteCode: appliedInviteCode } : {}),
       },
+    });
+
+    await recordCustomerActivity(ctx, "checkout_started", {
+      detail: appliedInviteCode ? `${plan} · invite ${appliedInviteCode}` : plan,
     });
 
     console.log("[billing:checkout] Created checkout session", {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 
 type RuleMode = "auto" | "manual";
 type ResponseMethod = "template" | "ai" | "manual";
@@ -13,6 +14,11 @@ function parseResponseMethod(v: unknown): ResponseMethod {
   if (v === "ai") return "ai";
   if (v === "manual") return "manual";
   return "template";
+}
+
+function describeRule(minStars: number | null, maxStars: number | null, mode: RuleMode, responseType: ResponseMethod) {
+  const stars = `${minStars ?? 1}–${maxStars ?? 5}★`;
+  return `${stars} · ${responseType} · ${mode}`;
 }
 
 export async function GET() {
@@ -34,7 +40,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -80,12 +87,14 @@ export async function POST(req: Request) {
     },
     include: { template: true },
   });
+  await recordCustomerActivity(ctx, "rule_created", { detail: describeRule(minStars, maxStars, mode, responseType) });
 
   return NextResponse.json({ rule }, { status: 201 });
 }
 
 export async function PUT(req: Request) {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -131,12 +140,14 @@ export async function PUT(req: Request) {
   });
 
   if (updated.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  await recordCustomerActivity(ctx, "rule_updated", { detail: describeRule(minStars, maxStars, mode, responseType) });
 
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: Request) {
-  const { business } = await getCurrentUserAndBusiness();
+  const ctx = await getCurrentUserAndBusiness();
+  const { business } = ctx;
   if (!business) {
     return NextResponse.json(
       { error: "Please complete onboarding first.", code: "NO_BUSINESS" },
@@ -153,6 +164,7 @@ export async function DELETE(req: Request) {
   });
 
   if (deleted.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  await recordCustomerActivity(ctx, "rule_deleted");
 
   return NextResponse.json({ ok: true });
 }

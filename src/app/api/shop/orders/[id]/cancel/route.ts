@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { getCurrentUserAndBusiness, isReadOnlySupportImpersonation } from "@/lib/currentBusiness";
+import { recordCustomerActivity } from "@/lib/activity";
 import { handleShopCheckoutEvent } from "@/lib/shopOrders";
 
 /**
@@ -22,6 +23,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     select: { id: true, stripeSessionId: true },
   });
   if (!order) return NextResponse.redirect(ordersUrl, 303);
+  await recordCustomerActivity(ctx, "shop_order_canceled");
 
   if (!order.stripeSessionId) {
     await prisma.shopOrder.updateMany({ where: { id: order.id, status: "pending" }, data: { status: "canceled" } });
