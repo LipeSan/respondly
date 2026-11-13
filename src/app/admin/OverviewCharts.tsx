@@ -15,8 +15,13 @@ const dayLabel = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "shor
 const dayLabelLong = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
 // `day` is a calendar date (YYYY-MM-DD) already bucketed server side, so format it as UTC to keep it unshifted.
-function toLabels(day: string) {
+// Weekly buckets also carry `toDay` and show the whole range in the tooltip.
+function toLabels(day: string, toDay?: string) {
   const date = new Date(`${day}T00:00:00Z`);
+  if (toDay && toDay !== day) {
+    const end = new Date(`${toDay}T00:00:00Z`);
+    return { label: dayLabel.format(date), longLabel: `${dayLabel.format(date)} – ${dayLabel.format(end)}` };
+  }
   return { label: dayLabel.format(date), longLabel: dayLabelLong.format(date) };
 }
 
@@ -124,7 +129,7 @@ const reviewSeries: Series[] = [
 ];
 
 export function DailyReviewsChart({ daily }: { daily: AdminDailyPoint[] }) {
-  const data = daily.map((d) => ({ ...d, ...toLabels(d.day) }));
+  const data = daily.map((d) => ({ ...d, ...toLabels(d.day, d.toDay) }));
   return (
     <>
       <DailyBarChart
@@ -152,7 +157,7 @@ export function DailyCountChart({
   emptyTitle: string;
   emptyDetail: string;
 }) {
-  const data = daily.map((d) => ({ ...d, ...toLabels(d.day) }));
+  const data = daily.map((d) => ({ ...d, ...toLabels(d.day, d.toDay) }));
   return (
     <DailyBarChart
       data={data}

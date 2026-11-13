@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAdminOverviewData } from "@/lib/adminData";
+import { ADMIN_OVERVIEW_RANGES, getAdminOverviewData, parseAdminOverviewRange } from "@/lib/adminData";
 import { formatAdminDateTime } from "@/lib/date";
 import {
   Badge,
@@ -16,7 +16,8 @@ import { DailyCountChart, DailyReviewsChart } from "./OverviewCharts";
 
 export const dynamic = "force-dynamic";
 
-function Delta({ current, previous }: { current: number; previous: number }) {
+function Delta({ current, previous }: { current: number; previous: number | null }) {
+  if (previous === null) return <span className="text-xs text-gray-400">All time</span>;
   if (previous === 0) return <span className="text-xs text-gray-400">No data for the previous period</span>;
   const diff = current - previous;
   if (diff === 0) return <span className="text-xs text-gray-500">Same as previous period</span>;
@@ -37,9 +38,19 @@ function KpiCard({ label, value, footer }: { label: string; value: string; foote
   );
 }
 
-export default async function AdminOverviewPage() {
-  const data = await getAdminOverviewData(30);
+const rangeLabels: Record<(typeof ADMIN_OVERVIEW_RANGES)[number], string> = {
+  "7": "7d",
+  "30": "30d",
+  "90": "90d",
+  all: "All",
+};
+
+export default async function AdminOverviewPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const range = parseAdminOverviewRange((await searchParams).range);
+  const data = await getAdminOverviewData(range);
   const { system, kpis } = data;
+  const period = range === "all" ? "all time" : `last ${data.rangeDays} days`;
+  const periodTitle = range === "all" ? "All time" : `Last ${data.rangeDays} days`;
 
   const systemTone = system.cronStale
     ? { box: "border-red-200 bg-red-50", dot: "bg-red-500", title: "text-red-900", detail: "text-red-800" }
@@ -54,13 +65,36 @@ export default async function AdminOverviewPage() {
       : "Automation is running";
 
   const revenueCurrent = kpis.revenue.current[0];
-  const revenuePrevious = kpis.revenue.previous.find((r) => r.currency === revenueCurrent?.currency);
+  const revenuePrevious = kpis.revenue.previous?.find((r) => r.currency === revenueCurrent?.currency);
   const funnelTop = Math.max(1, data.funnel[0]?.count ?? 1);
+  // Collapsed by default; the header badges still show how many customers need attention.
+  const attentionCriticalCount = data.attention.filter((row) => row.issues.some((i) => i.severity === "critical")).length;
+  const attentionTotal = data.attention.length + (data.incompleteSignups > 0 ? 1 : 0);
   const reviewsTotal = data.daily.reduce((sum, d) => sum + d.reviewsPositive + d.reviewsNeutral + d.reviewsNegative, 0);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Overview" subtitle="What needs attention across all customers, last 30 days." />
+      <PageHeader
+        title="Overview"
+        subtitle={`What needs attention across all customers, ${period}.`}
+        actions={
+          <nav className="inline-flex rounded-lg border border-gray-200 bg-white p-1" aria-label="Date range">
+            {ADMIN_OVERVIEW_RANGES.map((option) => (
+              <Link
+                key={option}
+                href={option === "30" ? "/admin" : `/admin?range=${option}`}
+                scroll={false}
+                aria-current={range === option ? "page" : undefined}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  range === option ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {rangeLabels[option]}
+              </Link>
+            ))}
+          </nav>
+        }
+      />
 
       <div className={`flex items-start gap-3 rounded-2xl border p-4 ${systemTone.box}`}>
         <span className={`mt-1.5 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${systemTone.dot}`} />
@@ -75,16 +109,37 @@ export default async function AdminOverviewPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader
-          title="Needs attention"
-          subtitle="Customers with a setup, billing or automation problem."
-          action={
+      <details className="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-4 [&::-webkit-details-marker]:hidden">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-semibold text-gray-900">Needs attention</h2>
+              {attentionCriticalCount > 0 ? <Badge tone="red">{attentionCriticalCount} critical</Badge> : null}
+              {attentionTotal - attentionCriticalCount > 0 ? (
+                <Badge tone="amber">{attentionTotal - attentionCriticalCount} warning</Badge>
+              ) : null}
+              {attentionTotal === 0 ? <Badge tone="green">All healthy</Badge> : null}
+            </div>
+            <p className="mt-0.5 text-sm text-gray-500">Customers with a setup, billing or automation problem.</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-4">
             <Link href="/admin/customers?filter=attention" className="text-sm font-semibold text-blue-600 hover:text-blue-500">
               View all
             </Link>
-          }
-        />
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-5 w-5 text-gray-400 transition-transform duration-200 group-open:rotate-180"
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        </summary>
         <div className="mt-3 divide-y divide-gray-100">
           {data.attention.length === 0 && data.incompleteSignups === 0 ? (
             <p className="py-6 text-center text-sm text-gray-500">All customers look healthy.</p>
@@ -147,7 +202,7 @@ export default async function AdminOverviewPage() {
             </p>
           ) : null}
         </div>
-      </Card>
+      </details>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <KpiCard
@@ -169,7 +224,7 @@ export default async function AdminOverviewPage() {
                 {formatMoney(revenuePrevious.amount, revenuePrevious.currency)} in the previous period
               </span>
             ) : (
-              <span className="text-xs text-gray-400">Paid invoices in the last 30 days</span>
+              <span className="text-xs text-gray-400">Paid invoices, {period}</span>
             )
           }
         />
@@ -182,8 +237,8 @@ export default async function AdminOverviewPage() {
 
       <Card>
         <CardHeader
-          title="Reviews per day"
-          subtitle={`New Google reviews across all customers by rating, last ${data.rangeDays} days (Sydney time)`}
+          title={`Reviews per ${data.bucket}`}
+          subtitle={`New Google reviews across all customers by rating, ${period} (Sydney time)`}
           action={
             <span className="text-sm tabular-nums text-gray-500">
               <span className="font-semibold text-gray-900">{reviewsTotal}</span> total
@@ -195,7 +250,7 @@ export default async function AdminOverviewPage() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Replies sent per day" subtitle={`Last ${data.rangeDays} days`} />
+          <CardHeader title={`Replies sent per ${data.bucket}`} subtitle={periodTitle} />
           <DailyCountChart
             daily={data.daily}
             metric="replies"
@@ -205,7 +260,7 @@ export default async function AdminOverviewPage() {
           />
         </Card>
         <Card>
-          <CardHeader title="Signups per day" subtitle={`Last ${data.rangeDays} days, customers only`} />
+          <CardHeader title={`Signups per ${data.bucket}`} subtitle={`${periodTitle}, customers only`} />
           <DailyCountChart
             daily={data.daily}
             metric="signups"

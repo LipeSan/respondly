@@ -116,7 +116,8 @@ function sumByCurrency(rows: Array<{ amount: number | null; currency: string | n
 }
 
 export type AdminDailyPoint = {
-  day: string; // YYYY-MM-DD
+  day: string; // YYYY-MM-DD, first day of the bucket
+  toDay?: string; // YYYY-MM-DD, last day of the bucket (weekly buckets only)
   reviewsPositive: number; // 4-5 stars
   reviewsNeutral: number; // 3 stars
   reviewsNegative: number; // 1-2 stars
@@ -185,11 +186,59 @@ async function loadDailySeries(rangeDays: number): Promise<AdminDailyPoint[]> {
   `;
 }
 
-export async function getAdminOverviewData(rangeDays = 30) {
+/**
+ * Groups daily points into 7-day buckets ending today (so the oldest bucket may be shorter),
+ * matching the customer dashboard.
+ */
+function groupByWeek(daily: AdminDailyPoint[]): AdminDailyPoint[] {
+  const weeks: AdminDailyPoint[] = [];
+  for (let end = daily.length; end > 0; end -= 7) {
+    const chunk = daily.slice(Math.max(0, end - 7), end);
+    weeks.unshift({
+      day: chunk[0].day,
+      toDay: chunk[chunk.length - 1].day,
+      reviewsPositive: chunk.reduce((n, d) => n + d.reviewsPositive, 0),
+      reviewsNeutral: chunk.reduce((n, d) => n + d.reviewsNeutral, 0),
+      reviewsNegative: chunk.reduce((n, d) => n + d.reviewsNegative, 0),
+      replies: chunk.reduce((n, d) => n + d.replies, 0),
+      signups: chunk.reduce((n, d) => n + d.signups, 0),
+    });
+  }
+  return weeks;
+}
+
+export const ADMIN_OVERVIEW_RANGES = ["7", "30", "90", "all"] as const;
+export type AdminOverviewRange = (typeof ADMIN_OVERVIEW_RANGES)[number];
+
+export function parseAdminOverviewRange(value: unknown): AdminOverviewRange {
+  return ADMIN_OVERVIEW_RANGES.includes(value as AdminOverviewRange) ? (value as AdminOverviewRange) : "30";
+}
+
+export async function getAdminOverviewData(range: AdminOverviewRange = "30") {
   const now = new Date();
-  const start = new Date(now.getTime() - rangeDays * DAY_MS);
-  const previousStart = new Date(start.getTime() - rangeDays * DAY_MS);
   const cronWindowStart = new Date(now.getTime() - CRON_STALE_MS);
+
+  // "all" = since the first customer signed up (not since the oldest Google review, which can
+  // predate the product by years). There is no previous period to compare against.
+  let rangeDays: number;
+  let start: Date | null;
+  let previousStart: Date | null;
+  if (range === "all") {
+    const firstSignup = await prisma.user.findFirst({
+      where: { role: "user" },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    });
+    rangeDays = firstSignup ? Math.max(1, Math.ceil((now.getTime() - firstSignup.createdAt.getTime()) / DAY_MS) + 1) : 1;
+    start = null;
+    previousStart = null;
+  } else {
+    rangeDays = Number(range);
+    start = new Date(now.getTime() - rangeDays * DAY_MS);
+    previousStart = new Date(start.getTime() - rangeDays * DAY_MS);
+  }
+  const inRange = start ? { gte: start } : undefined;
+  const inPrevious = start && previousStart ? { gte: previousStart, lt: start } : null;
 
   const [
     rows,
@@ -219,18 +268,20 @@ export async function getAdminOverviewData(rangeDays = 30) {
       distinct: ["businessId"],
       select: { businessId: true },
     }),
-    prisma.user.count({ where: { role: "user", createdAt: { gte: start } } }),
-    prisma.user.count({ where: { role: "user", createdAt: { gte: previousStart, lt: start } } }),
+    prisma.user.count({ where: { role: "user", createdAt: inRange } }),
+    inPrevious ? prisma.user.count({ where: { role: "user", createdAt: inPrevious } }) : null,
     prisma.paymentHistory.findMany({
-      where: { status: "paid", createdAt: { gte: start } },
+      where: { status: "paid", createdAt: inRange },
       select: { amount: true, currency: true },
     }),
-    prisma.paymentHistory.findMany({
-      where: { status: "paid", createdAt: { gte: previousStart, lt: start } },
-      select: { amount: true, currency: true },
-    }),
-    prisma.reviewResponse.count({ where: { sentAt: { gte: start } } }),
-    prisma.reviewResponse.count({ where: { sentAt: { gte: previousStart, lt: start } } }),
+    inPrevious
+      ? prisma.paymentHistory.findMany({
+          where: { status: "paid", createdAt: inPrevious },
+          select: { amount: true, currency: true },
+        })
+      : null,
+    prisma.reviewResponse.count({ where: { sentAt: inRange ?? { not: null } } }),
+    inPrevious ? prisma.reviewResponse.count({ where: { sentAt: inPrevious } }) : null,
     prisma.user.count({ where: { role: "user" } }),
     prisma.user.count({
       where: {
@@ -267,8 +318,13 @@ export async function getAdminOverviewData(rangeDays = 30) {
       return rank(a) - rank(b);
     });
 
+  // Daily bars up to 30 days; longer ranges would be a wall of thin bars, so group by week.
+  const bucket: "day" | "week" = rangeDays > 30 ? "week" : "day";
+
   return {
+    range,
     rangeDays,
+    bucket,
     system: {
       lastCronRunAt: lastCronRun?.startedAt ?? null,
       cronStale,
@@ -280,7 +336,7 @@ export async function getAdminOverviewData(rangeDays = 30) {
       payingCustomers: customers.filter((r) => r.paying && r.subscription?.status === "active").length,
       trialing: customers.filter((r) => r.paying && r.subscription?.status === "trialing").length,
       signups: { current: signups, previous: previousSignups },
-      revenue: { current: sumByCurrency(payments), previous: sumByCurrency(previousPayments) },
+      revenue: { current: sumByCurrency(payments), previous: previousPayments ? sumByCurrency(previousPayments) : null },
       repliesSent: { current: replies, previous: previousReplies },
     },
     attention,
@@ -302,6 +358,6 @@ export async function getAdminOverviewData(rangeDays = 30) {
       ];
     })(),
     recentActivity,
-    daily,
+    daily: bucket === "week" ? groupByWeek(daily) : daily,
   };
 }
