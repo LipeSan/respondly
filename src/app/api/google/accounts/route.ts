@@ -4,6 +4,7 @@ import { googleGetForBusiness } from "@/lib/googleClient";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { getCache, setCache } from "@/lib/simpleCache";
+import { decryptToken } from "@/lib/tokenCrypto";
 
 type GoogleAccount = { name: string; accountName?: string; type?: string };
 
@@ -23,12 +24,13 @@ export async function GET() {
   // Key the cache by the current Google connection, not just the business. Reconnecting
   // (possibly with a different Google account) issues a new refresh token, so a stale list
   // from the previous account is never served — on any server instance.
+  // Hash the decrypted token: the stored ciphertext changes on every write (random IV).
   const conn = await prisma.googleConnection.findUnique({
     where: { businessId: business.id },
     select: { refreshToken: true },
   });
   const connKey = conn
-    ? createHash("sha256").update(conn.refreshToken).digest("hex").slice(0, 16)
+    ? createHash("sha256").update(decryptToken(conn.refreshToken)).digest("hex").slice(0, 16)
     : "none";
 
   try {

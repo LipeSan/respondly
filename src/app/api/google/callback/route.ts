@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { exchangeCodeForTokens, parseState } from "@/lib/googleOauth";
 import { getCurrentUserAndBusiness } from "@/lib/currentBusiness";
 import { recordCustomerActivity } from "@/lib/activity";
+import { decryptToken, encryptToken } from "@/lib/tokenCrypto";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -31,18 +32,23 @@ export async function GET(req: Request) {
     where: { businessId: parsed.businessId },
   });
 
+  const accessToken = encryptToken(tokens.access_token);
+  const refreshToken = encryptToken(
+    tokens.refresh_token || (existing ? decryptToken(existing.refreshToken) : ""),
+  );
+
   await prisma.googleConnection.upsert({
     where: { businessId: parsed.businessId },
     create: {
       businessId: parsed.businessId,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token ?? "",
+      accessToken,
+      refreshToken,
       expiresAt,
     },
     update: {
-      accessToken: tokens.access_token,
+      accessToken,
+      refreshToken,
       expiresAt,
-      refreshToken: tokens.refresh_token ? tokens.refresh_token : (existing?.refreshToken ?? ""),
     },
   });
 
